@@ -1,0 +1,51 @@
+{% extends "kasse/base.html" %}
+{% block title %}Neue Zaehlung – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Neue Zaehlung erfassen</h1>
+
+  {% if not formset.forms %}
+    <div class="card">
+      <p class="muted">Es sind noch keine aktiven Getraenke angelegt. Bitte zuerst in der
+        <a href="{% url 'admin:kasse_getraenk_add' %}">Verwaltung</a> ein Getraenk anlegen.</p>
+    </div>
+  {% else %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="card">
+        <h2>Allgemein</h2>
+        {{ zaehlung_form.as_p }}
+      </div>
+
+      <div class="card">
+        <h2>Bestaende je Getraenk</h2>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}
+          <p class="negative">{{ formset.non_form_errors }}</p>
+        {% endif %}
+        <div class="zaehlung-row muted">
+          <div>Getraenk</div>
+          <div>Vollbestand</div>
+          <div>Leergut</div>
+          <div>Rueckgabe Markt</div>
+        </div>
+        {% for form in formset %}
+          <div class="zaehlung-row">
+            <div class="drink-name">
+              {{ form.getraenk.as_hidden }}
+              {{ form.getraenk_name }}
+              {{ form.id }}
+            </div>
+            <div>{{ form.vollbestand_gezaehlt }}</div>
+            <div>{{ form.leergut_gezaehlt }}</div>
+            <div>{{ form.rueckgabe_an_getraenkemarkt }}</div>
+          </div>
+          {% if form.errors %}
+            <p class="negative">{{ form.errors }}</p>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <button type="submit">Zaehlung speichern</button>
+    </form>
+  {% endif %}
+{% endblock %}

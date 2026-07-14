@@ -1,0 +1,44 @@
+{% extends "kasse/base.html" %}
+{% block title %}Uebersicht – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Vertrauenskasse</h1>
+
+  <div class="card">
+    <h2>Schnellzugriff</h2>
+    <p>
+      <a class="btn" href="{% url 'kasse:zaehlung_neu' %}">Neue Zaehlung erfassen</a>
+      <a class="btn btn-secondary" href="{% url 'kasse:auswertung' %}">Auswertung ansehen</a>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Letzte Zaehlungen</h2>
+    {% if zaehlungen %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Datum</th><th>Notiz</th><th>Bargeld</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for z in zaehlungen %}
+              <tr>
+                <td>{{ z.datum }}</td>
+                <td>{{ z.notiz|default:"–" }}</td>
+                <td>{% if z.bargeld_gezaehlt is not None %}{{ z.bargeld_gezaehlt }} €{% else %}–{% endif %}</td>
+                <td><a href="{% url 'admin:kasse_zaehlung_change' z.pk %}">bearbeiten</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Noch keine Zaehlungen erfasst.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Verwaltung</h2>
+    <p class="muted">Getraenke, Belege, Freigetraenke und PayPal-Zahlungen pflegst du im Verwaltungsbereich.</p>
+    <a class="btn btn-secondary" href="{% url 'admin:index' %}">Zur Verwaltung</a>
+  </div>
+{% endblock %}
