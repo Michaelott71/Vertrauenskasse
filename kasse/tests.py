@@ -84,7 +84,7 @@ class AuswertungTests(TestCase):
 
     def test_freigetraenke_reduziert_verkauft(self):
         Freigetraenk.objects.create(
-            getraenk=self.bier, datum="2026-06-05", anzahl=5, kommentar="Vereinsfeier"
+            getraenk=self.bier, datum="2026-06-05", anzahl=5, kommentar="Teamevent"
         )
         self._ende_bestand(40, 40, 0, 20, 20, 0)
 

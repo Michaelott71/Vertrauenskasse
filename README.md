@@ -1,6 +1,6 @@
 # Vertrauenskasse
 
-Modul zur Verwaltung der Getraenke-Vertrauenskasse im Vereinsheim: Bestandszaehlungen,
+Modul zur Verwaltung der Getraenke-Vertrauenskasse im Betrieb: Bestandszaehlungen,
 Belege, Freigetraenke und PayPal-Zahlungen erfassen und automatisch Soll/Ist-Kasse
 sowie den Leergut-Abgleich berechnen.
 
