@@ -1,6 +1,8 @@
 from decimal import Decimal
 
-from django.test import TestCase
+from django.contrib.auth.models import User
+from django.test import TestCase, override_settings
+from django.urls import reverse
 
 from .models import (
     Beleg,
@@ -167,3 +169,35 @@ class AuswertungTests(TestCase):
     def test_falsche_reihenfolge_wirft_fehler(self):
         with self.assertRaises(AuswertungError):
             berechne_auswertung(self.ende, self.start)
+
+
+@override_settings(MEDIA_ROOT="/tmp/vertrauenskasse-test-media")
+class MediaServeTests(TestCase):
+    def setUp(self):
+        import os
+
+        os.makedirs("/tmp/vertrauenskasse-test-media/belege", exist_ok=True)
+        with open("/tmp/vertrauenskasse-test-media/belege/beleg.pdf", "wb") as f:
+            f.write(b"%PDF-1.4 test")
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+
+    def test_ohne_login_gibt_es_keinen_zugriff(self):
+        response = self.client.get(
+            reverse("kasse:media", kwargs={"path": "belege/beleg.pdf"})
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.url)
+
+    def test_eingeloggter_nutzer_bekommt_die_datei(self):
+        self.client.login(username="tester", password="pw12345678")
+        response = self.client.get(
+            reverse("kasse:media", kwargs={"path": "belege/beleg.pdf"})
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_path_traversal_wird_verhindert(self):
+        self.client.login(username="tester", password="pw12345678")
+        response = self.client.get(
+            reverse("kasse:media", kwargs={"path": "../settings.py"})
+        )
+        self.assertEqual(response.status_code, 404)

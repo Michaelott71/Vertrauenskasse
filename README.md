@@ -75,10 +75,40 @@ Getestet in `kasse/tests.py` (`python manage.py test`).
 - **Verwaltung** (`/admin/`): Getraenke, Belege (inkl. Positionen), Freigetraenke
   und PayPal-Zahlungen pflegen.
 
+## Getraenke im Admin anlegen
+
+1. Unter `/admin/` anmelden (Superuser-Zugangsdaten).
+2. Im Bereich **Kasse** auf **Getraenks** klicken, dann **Getraenk hinzufuegen**.
+3. Felder ausfuellen:
+   - **Name**: z.B. "Bier 0,33l" — muss eindeutig sein.
+   - **Warenpreis**: Einkaufspreis pro Flasche/Dose (nur informativ, fliesst
+     nicht in die Soll/Ist-Berechnung ein).
+   - **Pfand**: Pfandbetrag pro Einheit (aktuell informativ, nicht Teil der
+     Rechenlogik).
+   - **Verkaufspreis**: Preis, zu dem in der Vertrauenskasse verkauft wird —
+     zentral fuer die Soll-Kasse-Berechnung.
+   - **Aktiv**: Haken setzen. Nur aktive Getraenke tauchen im Formular "Neue
+     Zaehlung erfassen" auf. Ein Getraenk aus dem Sortiment nehmen, ohne die
+     Historie zu verlieren: Haken einfach wieder entfernen statt zu loeschen.
+4. **Speichern**. Das Getraenk erscheint danach in der Zaehlungs-Erfassung.
+
+Zum Loeschen eines Getraenks: nicht empfohlen, wenn bereits Zaehlungen, Belege
+oder Freigetraenke dafuer existieren (diese Datensaetze bleiben durch die
+Datenbank-Constraints erhalten und blockieren das Loeschen). Stattdessen auf
+"Aktiv" = Nein setzen.
+
+## Deployment
+
+Fuer den Produktivbetrieb per Docker Compose (Django + Gunicorn + Caddy als
+Reverse Proxy mit optionalem automatischem HTTPS) siehe [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Konfiguration (Produktivbetrieb)
 
-Ueber Umgebungsvariablen (siehe `config/settings.py`):
+Ueber Umgebungsvariablen (siehe `config/settings.py` und `.env.example`):
 
 - `DJANGO_SECRET_KEY`
 - `DJANGO_DEBUG` (`True`/`False`)
 - `DJANGO_ALLOWED_HOSTS` (kommagetrennt)
+- `DJANGO_CSRF_TRUSTED_ORIGINS` (kommagetrennt, nur bei HTTPS-Domain noetig)
+- `DJANGO_DB_PATH` (Pfad zur SQLite-Datei, Default: `db.sqlite3` im Projektverzeichnis)
+- `SITE_ADDRESS` (nur Docker/Caddy: Domain fuer automatisches HTTPS oder `:80` fuer reines HTTP)

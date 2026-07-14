@@ -1,0 +1,30 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - db-data:/app/data
+      - media-data:/app/media
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+volumes:
+  db-data:
+  media-data:
+  caddy-data:
+  caddy-config:

@@ -1,5 +1,9 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -78,3 +82,17 @@ def auswertung(request):
         "kasse/auswertung.html",
         {"form": form, "result": result, "error": error},
     )
+
+
+@login_required
+def media_serve(request, path):
+    """Liefert hochgeladene Belege nur fuer angemeldete Nutzer aus.
+
+    Ersetzt Djangos DEBUG-only static()-Helper, damit Beleg-Scans nicht
+    unauthentifiziert ueber den Reverse Proxy abrufbar sind.
+    """
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    target = (media_root / path).resolve()
+    if media_root not in target.parents or not target.is_file():
+        raise Http404
+    return FileResponse(target.open("rb"))
