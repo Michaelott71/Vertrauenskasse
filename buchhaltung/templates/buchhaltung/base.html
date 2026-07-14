@@ -3,17 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Vertrauenskasse{% endblock %}</title>
+  <title>{% block title %}Buchhaltung{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'kasse/style.css' %}">
 </head>
 <body>
   <header class="site-header">
-    <a href="{% url 'kasse:home' %}">Vertrauenskasse</a>
+    <a href="{% url 'buchhaltung:monatsliste' %}">Buchhaltung</a>
     <nav>
       {% if user.is_authenticated %}
-        <a href="{% url 'kasse:zaehlung_neu' %}">Neue Zaehlung</a>
-        <a href="{% url 'kasse:auswertung' %}">Auswertung</a>
-        <a href="{% url 'buchhaltung:monatsliste' %}">Buchhaltung</a>
+        <a href="{% url 'kasse:home' %}">Vertrauenskasse</a>
+        <a href="{% url 'buchhaltung:monatsliste' %}">Monatsliste</a>
         <a href="{% url 'admin:index' %}">Verwaltung</a>
         <a href="{% url 'logout' %}">Abmelden</a>
       {% else %}

@@ -1,0 +1,76 @@
+{% extends "buchhaltung/base.html" %}
+{% block title %}Monatsliste – Buchhaltung{% endblock %}
+{% block content %}
+  <div class="card">
+    <h1>Monatsliste {{ monat }}/{{ jahr }}</h1>
+    <form method="get" style="display:flex; gap:0.5rem; align-items:end; flex-wrap:wrap;">
+      <div>
+        <label for="jahr">Jahr</label>
+        <input type="number" id="jahr" name="jahr" value="{{ jahr }}">
+      </div>
+      <div>
+        <label for="monat">Monat</label>
+        <input type="number" id="monat" name="monat" min="1" max="12" value="{{ monat }}">
+      </div>
+      <button type="submit">Anzeigen</button>
+    </form>
+  </div>
+
+  <div class="card summary-grid">
+    <div class="summary-item">
+      <div class="muted">Netto-Summe</div>
+      <div class="value">{{ netto_summe|floatformat:2 }} EUR</div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">Brutto-Summe</div>
+      <div class="value">{{ brutto_summe|floatformat:2 }} EUR</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p>
+      <a class="btn btn-secondary" href="{% url 'buchhaltung:export_csv' %}?jahr={{ jahr }}&monat={{ monat }}">CSV-Export</a>
+      <a class="btn btn-secondary" href="{% url 'buchhaltung:export_xlsx' %}?jahr={{ jahr }}&monat={{ monat }}">Excel-Export</a>
+      <a class="btn btn-secondary" href="{% url 'buchhaltung:export_datev' %}?jahr={{ jahr }}&monat={{ monat }}">DATEV-Export</a>
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Nummer</th>
+            <th>Datum</th>
+            <th>Kunde</th>
+            <th>Netto</th>
+            <th>MwSt</th>
+            <th>Brutto</th>
+            <th>Bezahlt</th>
+            <th>PDF</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rechnung in rechnungen %}
+            <tr>
+              <td>{{ rechnung.nummer }}</td>
+              <td>{{ rechnung.datum }}</td>
+              <td>{{ rechnung.kunde_name|default:"–" }}</td>
+              <td>{{ rechnung.netto_summe|floatformat:2 }}</td>
+              <td>{{ rechnung.mwst_gesamt|floatformat:2 }}</td>
+              <td>{{ rechnung.brutto_summe|floatformat:2 }}</td>
+              <td>
+                <form method="post" action="{% url 'buchhaltung:rechnung_bezahlt' rechnung.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="{% if rechnung.bezahlt %}positive{% else %}btn-secondary btn{% endif %}">
+                    {% if rechnung.bezahlt %}bezahlt{% else %}offen{% endif %}
+                  </button>
+                </form>
+              </td>
+              <td><a href="{% url 'buchhaltung:rechnung_pdf' rechnung.pk %}">PDF</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="muted">Keine Rechnungen in diesem Monat.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

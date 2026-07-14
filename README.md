@@ -1,16 +1,27 @@
 # Vertrauenskasse
 
-Modul zur Verwaltung der Getraenke-Vertrauenskasse im Betrieb: Bestandszaehlungen,
-Belege, Freigetraenke und PayPal-Zahlungen erfassen und automatisch Soll/Ist-Kasse
-sowie den Leergut-Abgleich berechnen.
+Ein Django-Projekt mit zwei Modulen fuer den Betrieb (Majors Golfbox):
+
+- **`kasse`** – Getraenke-Vertrauenskasse: Bestandszaehlungen, Belege,
+  Freigetraenke und PayPal-Zahlungen erfassen und automatisch Soll/Ist-Kasse
+  sowie den Leergut-Abgleich berechnen.
+- **`buchhaltung`** – Rechnungen, Quittungen, Artikel und Gutscheine
+  verwalten sowie Monatslisten und einen DATEV-Export fuer den Steuerberater
+  erzeugen. Siehe [Abschnitt "Buchhaltungsmodul"](#buchhaltungsmodul) unten.
+
+Beide Module laufen in derselben Django-Anwendung mit gemeinsamer Datenbank
+(`db.sqlite3`) – es gibt keine separate Schnittstelle zwischen ihnen, sie
+teilen sich einfach dieselben Tabellen.
 
 ## Tech-Stack
 
 - **Django 5** (Python) mit **SQLite** als Datenbank
-- Django Admin fuer die Verwaltung von Getraenken, Belegen, Freigetraenken und
-  PayPal-Zahlungen
-- Eigene, mobile-optimierte Views/Templates fuer die zwei Kernworkflows:
-  Zaehlung erfassen und Auswertung ansehen
+- Django Admin fuer die Verwaltung der Stammdaten in beiden Modulen
+- Eigene, mobile-optimierte Views/Templates fuer die Kernworkflows: Zaehlung
+  erfassen, Auswertung ansehen (kasse), Monatsliste (buchhaltung)
+- **reportlab** fuer die PDF-Erzeugung (Rechnungen/Quittungen) und
+  **openpyxl** fuer den Excel-Export – beides reine Python-Pakete ohne
+  System-Abhaengigkeiten, damit das Docker-Deployment unveraendert bleibt
 - Kein Build-Tooling, keine externen JS/CSS-CDN-Abhaengigkeiten (funktioniert offline)
 
 ## Setup
@@ -97,6 +108,72 @@ oder Freigetraenke dafuer existieren (diese Datensaetze bleiben durch die
 Datenbank-Constraints erhalten und blockieren das Loeschen). Stattdessen auf
 "Aktiv" = Nein setzen.
 
+## Buchhaltungsmodul
+
+App `buchhaltung` (siehe `buchhaltung/models.py`), erreichbar unter
+`/buchhaltung/` sowie im Django Admin unter `/admin/`.
+
+### Datenmodell
+
+| Tabelle | Zweck |
+|---|---|
+| `Firmenprofil` | Ein Datensatz (`get_solo()`) mit Name, Adresse, Steuernummer, USt-IdNr, Bank/IBAN/BIC und Logo fuer den Briefkopf |
+| `Konto` | Bankkonto, dem Rechnungen/Quittungen zugeordnet werden koennen (Anzahl bewusst frei, siehe "Offene Punkte") |
+| `Artikel` | Stammdaten mit individuellem MwSt-Satz je Artikel |
+| `Rechnung` / `RechnungsPosition` | Rechnung mit fortlaufender Nummer `RE-<Jahr>-<NNN>`, Positionen mit MwSt je Position (bei Artikelbezug beim Anlegen eingefroren) |
+| `Quittung` | Fortlaufende Nummer `Q-<Jahr>-<NNN>`, optional ohne Namen, freier Verwendungszweck |
+| `Gutschein` / `GutscheinEinloesung` | Fest oder prozentual, Ablaufdatum, teilweise einloesbar ueber mehrere Buchungen (Restguthaben bei festem Betrag); auch als Preis/Verlosungsgewinn ausgebbar (`grund`) |
+| `ZahlungsdienstleisterGebuehr` | Gebuehr zu einer Rechnung/Quittung; voller Betrag wird regulaer verbucht, die Gebuehr als separater Aufwandsposten (auch im DATEV-Export) |
+
+Die fortlaufende Nummerierung sitzt in `Rechnung.save()`/`Quittung.save()`
+(`buchhaltung/models.py`, `_naechste_nummer`): hoechste bereits vergebene
+Nummer des Jahres + 1. Die Gutschein-Einloesung mit Restguthaben- und
+Ablaufdatum-Pruefung steckt in `buchhaltung/services.py`
+(`gutschein_einloesen`).
+
+### Workflows
+
+- **Monatsliste** (`/buchhaltung/?jahr=&monat=`): Rechnungen eines Monats mit
+  Netto/MwSt/Brutto-Summen, "bezahlt"-Umschalter je Rechnung sowie
+  CSV-, Excel- und DATEV-Export-Buttons.
+- **Rechnungs-/Quittungs-PDF** (`/buchhaltung/rechnung/<id>/pdf/`,
+  `/buchhaltung/quittung/<id>/pdf/`): wird bei Abruf mit Firmenlogo/Briefkopf
+  aus `Firmenprofil` erzeugt (`buchhaltung/pdf.py`, reportlab).
+- **Verwaltung** (`/admin/`): Firmenprofil, Konten, Artikel, Rechnungen (inkl.
+  Positionen und Zahlungsdienstleister-Gebuehren als Inline), Quittungen und
+  Gutscheine (inkl. Einloesungen) pflegen.
+
+### DATEV-Export
+
+`/buchhaltung/export/datev/?jahr=&monat=` liefert eine DATEV-EXTF-CSV
+(Buchungsstapel, Format 700/Kategorie 21; siehe `buchhaltung/datev.py`): je
+Rechnung eine Buchungszeile pro MwSt-Satz sowie eine separate Zeile je
+Zahlungsdienstleister-Gebuehr. Welcher Kontenrahmen verwendet wird, steuert
+die Umgebungsvariable `DATEV_KONTENRAHMEN` (`SKR03` oder `SKR04`, Default
+`SKR03`, siehe `config/settings.py` und `.env.example`); Beraternummer,
+Mandantennummer und Wirtschaftsjahr-Beginn lassen sich ueber
+`DATEV_BERATERNUMMER`, `DATEV_MANDANTENNUMMER` und `DATEV_WJ_BEGINN` setzen.
+
+**Wichtig:** Die Konto-Zuordnung in `KONTENRAHMEN_MAPPING`
+(`buchhaltung/datev.py`) enthaelt nur uebliche Platzhalter-Kontonummern
+(Erloeskonten je MwSt-Satz, Bankkonto, Aufwandskonto fuer
+Zahlungsdienstleister-Gebuehren). Diese Zuordnung sowie die BU-Schluessel
+sind noch **nicht** mit dem Steuerberater abgestimmt (siehe "Offene Punkte")
+und muessen vor dem produktiven Einsatz geprueft werden.
+
+### Offene Punkte (noch zu klaeren)
+
+- **Zahlungsdienstleister-Anbieter**: Das Feld `anbieter` bei
+  `ZahlungsdienstleisterGebuehr` ist bewusst Freitext, solange der Anbieter
+  nicht feststeht. Sobald klar ist (PayPal, SumUp, Stripe, ...), kann daraus
+  bei Bedarf ein festes Choices-Feld werden.
+- **Anzahl der Bankkonten**: `Konto` ist als freie Liste modelliert statt
+  einer festen Anzahl Felder, damit die tatsaechliche Anzahl spaeter ohne
+  Modelaenderung ergaenzt werden kann.
+- **DATEV-Kontenrahmen** (SKR03 vs. SKR04) und die genaue Konto-Zuordnung:
+  siehe Warnhinweis oben, `buchhaltung/datev.py` muss mit dem Steuerberater
+  final abgestimmt werden.
+
 ## Deployment
 
 Fuer den Produktivbetrieb per Docker Compose (Django + Gunicorn + Caddy als
@@ -112,3 +189,5 @@ Ueber Umgebungsvariablen (siehe `config/settings.py` und `.env.example`):
 - `DJANGO_CSRF_TRUSTED_ORIGINS` (kommagetrennt, nur bei HTTPS-Domain noetig)
 - `DJANGO_DB_PATH` (Pfad zur SQLite-Datei, Default: `db.sqlite3` im Projektverzeichnis)
 - `SITE_ADDRESS` (nur Docker/Caddy: Domain fuer automatisches HTTPS oder `:80` fuer reines HTTP)
+- `DATEV_KONTENRAHMEN` (`SKR03` oder `SKR04`, Default `SKR03`, siehe Abschnitt "Buchhaltungsmodul")
+- `DATEV_BERATERNUMMER`, `DATEV_MANDANTENNUMMER`, `DATEV_WJ_BEGINN` (optional, fuer die Kopfzeile des DATEV-Exports)

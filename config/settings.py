@@ -57,7 +57,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "kasse",
+    "buchhaltung",
 ]
+
+# Kontenrahmen fuer den DATEV-Export: mit dem Steuerberater noch nicht final
+# geklaert (SKR03 vs. SKR04), daher ueber Umgebungsvariable umschaltbar.
+DATEV_KONTENRAHMEN = os.environ.get("DATEV_KONTENRAHMEN", "SKR03")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
