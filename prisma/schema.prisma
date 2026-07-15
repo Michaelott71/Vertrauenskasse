@@ -1,0 +1,113 @@
+// Prisma schema for the Majors Golfbox booking portal.
+// See docs/ARCHITEKTUR.md for the rationale behind each entity.
+// MVP (Phase 1) actively uses: Tenant, Bay, User, Booking.
+// Later phases (2/3) use the remaining models; they exist now so future
+// features don't require destructive migrations.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum CustomerType {
+  NEW
+  REGULAR
+  MEMBER
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+}
+
+enum BookingType {
+  CUSTOMER
+  ADMIN_BLOCK_FREE
+  ADMIN_BLOCK_PAID
+  TRAINER_SLOT
+}
+
+enum PaymentStatus {
+  NONE
+  PENDING
+  PAID
+  REFUNDED_AS_CREDIT
+  FAILED
+}
+
+// A Tenant separates the Golfbox main portal from a future, independently
+// operated Trainer-Portal instance that reuses the same codebase.
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  bays  Bay[]
+  users User[]
+}
+
+model Bay {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  name     String
+  photoUrl String?
+
+  bookings Booking[]
+
+  @@unique([tenantId, name])
+}
+
+model User {
+  id                String       @id @default(cuid())
+  tenantId          String
+  tenant            Tenant       @relation(fields: [tenantId], references: [id])
+  email             String       @unique
+  passwordHash      String
+  name              String
+  address           String
+  phone             String
+  role              Role         @default(CUSTOMER)
+  customerType      CustomerType @default(NEW)
+  // Already instructed on-site -> exempt from the 1-day new-customer lead time.
+  isInstructed      Boolean      @default(false)
+  marketingOptIn    Boolean      @default(false)
+  privacyAcceptedAt DateTime
+  createdAt         DateTime     @default(now())
+
+  bookings Booking[]
+
+  @@index([tenantId])
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  bayId         String
+  bay           Bay           @relation(fields: [bayId], references: [id])
+  userId        String?
+  user          User?         @relation(fields: [userId], references: [id])
+  // Start always on the full hour; duration is always 55 minutes (enforced in app code).
+  startsAt      DateTime
+  endsAt        DateTime
+  status        BookingStatus @default(CONFIRMED)
+  type          BookingType   @default(CUSTOMER)
+  paymentStatus PaymentStatus @default(NONE)
+  createdAt     DateTime      @default(now())
+  cancelledAt   DateTime?
+  cancelledBy   String?
+
+  @@unique([bayId, startsAt])
+  @@index([userId])
+}
