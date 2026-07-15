@@ -13,6 +13,8 @@ class Getraenk(models.Model):
 
     class Meta:
         ordering = ["name"]
+        verbose_name = "Getränk"
+        verbose_name_plural = "Getränke"
 
     def __str__(self):
         return self.name
@@ -34,6 +36,8 @@ class Zaehlung(models.Model):
 
     class Meta:
         ordering = ["-datum", "-id"]
+        verbose_name = "Zählung"
+        verbose_name_plural = "Zählungen"
 
     def __str__(self):
         return f"Zaehlung vom {self.datum}"
@@ -60,6 +64,8 @@ class ZaehlungBestand(models.Model):
             )
         ]
         ordering = ["zaehlung", "getraenk"]
+        verbose_name = "Zählungsbestand"
+        verbose_name_plural = "Zählungsbestände"
 
     def __str__(self):
         return f"{self.getraenk} @ {self.zaehlung}"
@@ -73,6 +79,8 @@ class Beleg(models.Model):
 
     class Meta:
         ordering = ["-datum", "-id"]
+        verbose_name = "Beleg"
+        verbose_name_plural = "Belege"
 
     def __str__(self):
         return f"Beleg {self.haendler} vom {self.datum}"
@@ -88,6 +96,10 @@ class BelegPosition(models.Model):
     anzahl = models.PositiveIntegerField()
     einzelpreis = models.DecimalField(max_digits=8, decimal_places=2)
 
+    class Meta:
+        verbose_name = "Belegposition"
+        verbose_name_plural = "Belegpositionen"
+
     def __str__(self):
         return f"{self.anzahl}x {self.getraenk} ({self.beleg})"
 
@@ -102,6 +114,8 @@ class Freigetraenk(models.Model):
 
     class Meta:
         ordering = ["-datum", "-id"]
+        verbose_name = "Freigetränk"
+        verbose_name_plural = "Freigetränke"
 
     def __str__(self):
         return f"{self.anzahl}x {self.getraenk} frei am {self.datum}"
@@ -124,6 +138,8 @@ class PaypalZahlung(models.Model):
 
     class Meta:
         ordering = ["-datum", "-id"]
+        verbose_name = "PayPal-Zahlung"
+        verbose_name_plural = "PayPal-Zahlungen"
 
     def __str__(self):
         return f"PayPal {self.betrag} EUR am {self.datum}"
