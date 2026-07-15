@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     Beleg,
     BelegPosition,
+    DifferenzZuordnung,
     Freigetraenk,
     Getraenk,
     PaypalZahlung,
@@ -23,10 +24,15 @@ class ZaehlungBestandInline(admin.TabularInline):
     extra = 1
 
 
+class DifferenzZuordnungInline(admin.TabularInline):
+    model = DifferenzZuordnung
+    extra = 0
+
+
 @admin.register(Zaehlung)
 class ZaehlungAdmin(admin.ModelAdmin):
-    list_display = ("datum", "notiz", "bargeld_gezaehlt")
-    inlines = [ZaehlungBestandInline]
+    list_display = ("datum", "notiz", "bargeld_gezaehlt", "bargeld_entnommen")
+    inlines = [ZaehlungBestandInline, DifferenzZuordnungInline]
 
 
 class BelegPositionInline(admin.TabularInline):

@@ -2,6 +2,7 @@
 {% block title %}Auswertung – Vertrauenskasse{% endblock %}
 {% block content %}
   <h1>Auswertung</h1>
+  <p class="muted"><a href="{% url 'kasse:monatsauswertung' %}">Zur Monatsauswertung</a></p>
 
   <div class="card">
     <form method="get">
@@ -17,77 +18,48 @@
   {% endif %}
 
   {% if result %}
-    <div class="card">
-      <h2>Zeitraum: {{ result.start.datum }} → {{ result.ende.datum }}</h2>
-      <div class="summary-grid">
-        <div class="summary-item">
-          <div class="muted">Soll-Kasse</div>
-          <div class="value">{{ result.soll_kasse }} €</div>
-        </div>
-        <div class="summary-item">
-          <div class="muted">Ist-Kasse</div>
-          <div class="value">{{ result.ist_kasse }} €</div>
-          <div class="muted">Bargeld {{ result.bargeld_gezaehlt }} € + PayPal {{ result.paypal_getraenke }} €</div>
-        </div>
-        <div class="summary-item">
-          <div class="muted">Kassendifferenz</div>
-          <div class="value {% if result.kassendifferenz < 0 %}negative{% else %}positive{% endif %}">
-            {{ result.kassendifferenz }} €
-          </div>
-        </div>
-        <div class="summary-item">
-          <div class="muted">Leergut-Differenz (gesamt)</div>
-          <div class="value {% if result.leergut_differenz_gesamt < 0 %}negative{% else %}positive{% endif %}">
-            {{ result.leergut_differenz_gesamt }}
-          </div>
-        </div>
-      </div>
-    </div>
+    {% include "kasse/_auswertung_ergebnis.html" %}
 
     <div class="card">
-      <h2>Details je Getraenk</h2>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Getraenk</th>
-              <th>Voll Start</th>
-              <th>Nachschub</th>
-              <th>Voll Ende</th>
-              <th>Frei</th>
-              <th>Verkauft</th>
-              <th>Preis</th>
-              <th>Soll</th>
-              <th>Leergut Start</th>
-              <th>Rueckgabe</th>
-              <th>Leergut Ende</th>
-              <th>Erw. Leergut</th>
-              <th>Leergut Diff.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in result.positionen %}
-              <tr>
-                <td>{{ p.getraenk.name }}</td>
-                <td>{{ p.vollbestand_start }}</td>
-                <td>{{ p.nachschub }}</td>
-                <td>{{ p.vollbestand_ende }}</td>
-                <td>{{ p.freigetraenke }}</td>
-                <td>{{ p.verkauft }}</td>
-                <td>{{ p.verkaufspreis }} €</td>
-                <td>{{ p.soll_kasse }} €</td>
-                <td>{{ p.leergut_start }}</td>
-                <td>{{ p.rueckgabe_an_getraenkemarkt }}</td>
-                <td>{{ p.leergut_ende }}</td>
-                <td>{{ p.erwartetes_leergut }}</td>
-                <td class="{% if p.leergut_differenz < 0 %}negative{% else %}positive{% endif %}">
-                  {{ p.leergut_differenz }}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      <h2>Differenz zuordnen</h2>
+      <p class="muted">
+        Kassendifferenz: <strong>{{ result.kassendifferenz }} €</strong> —
+        zugeordnet: <strong>{{ zuordnung_summe }} €</strong> —
+        Rest offen:
+        <strong class="{% if zuordnung_rest != 0 %}negative{% else %}positive{% endif %}">
+          {{ zuordnung_rest }} €
+        </strong>
+      </p>
+
+      {% if zuordnungen %}
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Kategorie</th><th>Betrag</th><th>Kommentar</th></tr>
+            </thead>
+            <tbody>
+              {% for z in zuordnungen %}
+                <tr>
+                  <td>{{ z.get_kategorie_display }}</td>
+                  <td>{{ z.betrag }} €</td>
+                  <td>{{ z.kommentar|default:"–" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">Noch keine Zuordnung erfasst.</p>
+      {% endif %}
+
+      <h3>Neue Zuordnung</h3>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="start" value="{{ start_id }}">
+        <input type="hidden" name="ende" value="{{ ende_id }}">
+        {{ zuordnung_form.as_p }}
+        <button type="submit">Zuordnung speichern</button>
+      </form>
     </div>
   {% endif %}
 {% endblock %}

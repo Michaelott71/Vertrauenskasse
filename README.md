@@ -40,45 +40,76 @@ Anschliessend im Browser unter `http://127.0.0.1:8000/` anmelden.
 | `BelegPosition` | Positionen eines Belegs je Getraenk (Nachschub) |
 | `Freigetraenk` | Freigetraenke je Getraenk (reduzieren den Verkauf) |
 | `PaypalZahlung` | PayPal-Zahlungen, optional einer Zaehlung zugeordnet und als Getraenke-Zahlung markiert |
+| `DifferenzZuordnung` | Ordnet die Kassendifferenz einer Zaehlung Kategorien zu (Diebstahl, Nicht bezahlt, Freigetraenke, Veranstaltung) |
 
-**Abweichung vom vorgegebenen Schema:** `Zaehlung` hat zusaetzlich das Feld
-`bargeld_gezaehlt`. Ohne dieses Feld liesse sich die geforderte Formel
-`Ist-Kasse = gezaehltes Bargeld + manuell markierte PayPal-Zahlungen` nicht
-berechnen, da im urspruenglichen Modell kein Feld fuer das gezaehlte Bargeld
-vorgesehen war.
+**Abweichungen vom urspruenglich vorgegebenen Schema:**
+
+- `Zaehlung` hat zusaetzlich die Felder `bargeld_gezaehlt` und
+  `bargeld_entnommen`. Ohne `bargeld_gezaehlt` liesse sich die geforderte
+  Formel `Ist-Kasse = gezaehltes Bargeld + manuell markierte
+  PayPal-Zahlungen` nicht berechnen. `bargeld_entnommen` wurde noetig, weil
+  die Kasse in der Praxis manchmal bei einer Zaehlung geleert wird (Geld
+  entnommen) und manchmal nicht — siehe Rechenlogik unten.
+- `DifferenzZuordnung` ist eine komplett neue Tabelle (siehe "Differenz
+  zuordnen" unten).
 
 ## Rechenlogik
 
 Die komplette Berechnung steckt in `kasse/services.py`
 (`berechne_auswertung(start, ende)`), fuer jedes Getraenk zwischen zwei
-Zaehlungen `start` und `ende`:
+Zaehlungen `start` und `ende` — auch wenn dazwischen weitere Zaehlungen
+liegen (z.B. bei der Monatsauswertung):
 
 - `Verkauft = Vollbestand_Start + Nachschub − Vollbestand_Ende − Freigetraenke`
   (Nachschub = Summe `BelegPosition.anzahl` aus Belegen mit Datum im Zeitraum
   `(start.datum, ende.datum]`; Freigetraenke analog)
 - `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)`
-- `Ist-Kasse = bargeld_gezaehlt(ende) + Σ PayPal-Zahlungen mit ist_Getraenke_Zahlung=True, zaehlung=ende`
+- `Bargeld-Einnahmen = bargeld_gezaehlt(ende) − (bargeld_gezaehlt(start) − bargeld_entnommen(start)) + Σ bargeld_entnommen(z)`
+  fuer alle Zaehlungen `z` zeitlich zwischen `start` und `ende`. Damit
+  funktioniert die Rechnung unabhaengig davon, ob die Kasse zwischendurch
+  geleert wurde oder nicht:
+  - Wird die Kasse bei jeder Zaehlung komplett geleert (`bargeld_entnommen`
+    = `bargeld_gezaehlt`), ergibt das denselben Wert wie einfach
+    `bargeld_gezaehlt(ende)`.
+  - Bleibt das Geld einfach liegen (`bargeld_entnommen` = 0), ergibt das
+    `bargeld_gezaehlt(ende) − bargeld_gezaehlt(start)`.
+  - Mischformen (mal geleert, mal nicht) werden korrekt anteilig verrechnet.
+- `Ist-Kasse = Bargeld-Einnahmen + Σ PayPal-Zahlungen mit ist_Getraenke_Zahlung=True`,
+  fuer alle Zaehlungen zeitlich nach `start` bis inkl. `ende`
 - `Kassendifferenz = Ist-Kasse − Soll-Kasse` (keine Rundungstoleranz)
+- `Rueckgabe_an_Getraenkemarkt(i)` wird ebenfalls ueber alle Zaehlungen
+  zwischen `start` (exklusiv) und `ende` (inklusiv) aufsummiert, nicht nur
+  bei `ende` gezaehlt
 - `Erwartetes Leergut(i) = Leergut_Start(i) + Verkauft(i) − Rueckgabe_an_Getraenkemarkt(i)`
 - `Leergut-Differenz(i) = Leergut_Ende(i) − Erwartetes Leergut(i)`
   (negativ = Schwund/Pfandverlust, positiv = Fund/Fremdleergut)
 
-Getestet in `kasse/tests.py` (`python manage.py test`).
+Getestet in `kasse/tests.py` (`python manage.py test`), inkl. Szenarien mit
+mehreren Zaehlungen im selben Auswertungszeitraum.
 
 ## Workflows
 
-- **Neue Zaehlung** (`/zaehlung/neu/`): Datum, Notiz, gezaehltes Bargeld sowie
-  Voll-/Leergut-Bestand je aktivem Getraenk in einem mobilfreundlichen Formular
-  erfassen.
+- **Neue Zaehlung** (`/zaehlung/neu/`): Datum, Notiz, gezaehltes Bargeld,
+  entnommenes Bargeld sowie Voll-/Leergut-Bestand je aktivem Getraenk in
+  einem mobilfreundlichen Formular erfassen.
 - **Auswertung** (`/auswertung/`): Start- und End-Zaehlung auswaehlen, Soll/Ist-Kasse,
   Kassendifferenz und Leergut-Differenz je Getraenk sowie in Summe ansehen.
-- **Verwaltung** (`/admin/`): Getraenke, Belege (inkl. Positionen), Freigetraenke
-  und PayPal-Zahlungen pflegen.
+- **Monatsauswertung** (`/auswertung/monat/`): Monat auswaehlen, alle
+  Zaehlungen des Monats als Liste (mit Link zur Auswertung zur jeweils
+  vorherigen Zaehlung), plus ein Gesamtergebnis fuer den ganzen Monat
+  (erste vs. letzte Zaehlung im Monat).
+- **Differenz zuordnen** (Teil der Auswertungsseite): Die Kassendifferenz
+  einer Zaehlung auf feste Kategorien aufteilen — Diebstahl, Nicht bezahlt,
+  Freigetraenke (nicht erfasst), Veranstaltung inkl. Getraenke. Betrag mit
+  gleichem Vorzeichen wie die Kassendifferenz eingeben. Die Seite zeigt an,
+  wie viel bereits zugeordnet ist und wie viel "Rest offen" bleibt.
+- **Verwaltung** (`/admin/`): Getraenke, Belege (inkl. Positionen), Freigetraenke,
+  PayPal-Zahlungen und Differenz-Zuordnungen pflegen.
 
 ## Getraenke im Admin anlegen
 
 1. Unter `/admin/` anmelden (Superuser-Zugangsdaten).
-2. Im Bereich **Kasse** auf **Getraenks** klicken, dann **Getraenk hinzufuegen**.
+2. Im Bereich **Kasse** auf **Getränke** klicken, dann **Getränk hinzufügen**.
 3. Felder ausfuellen:
    - **Name**: z.B. "Bier 0,33l" — muss eindeutig sein.
    - **Warenpreis**: Einkaufspreis pro Flasche/Dose (nur informativ, fliesst

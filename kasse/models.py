@@ -33,6 +33,13 @@ class Zaehlung(models.Model):
         blank=True,
         help_text="Gezaehltes Bargeld in der Kasse bei dieser Zaehlung",
     )
+    bargeld_entnommen = models.DecimalField(
+        max_digits=9,
+        decimal_places=2,
+        default=0,
+        help_text="Wie viel von dem gezaehlten Bargeld direkt entnommen wurde "
+        "(z.B. eingezahlt). 0 lassen, wenn das Geld in der Kasse bleibt.",
+    )
 
     class Meta:
         ordering = ["-datum", "-id"]
@@ -150,3 +157,31 @@ class PaypalZahlung(models.Model):
                 "Eine als Getraenke-Zahlung markierte PayPal-Zahlung muss "
                 "einer Zaehlung zugeordnet sein."
             )
+
+
+class DifferenzZuordnung(models.Model):
+    class Kategorie(models.TextChoices):
+        DIEBSTAHL = "diebstahl", "Diebstahl"
+        NICHT_BEZAHLT = "nicht_bezahlt", "Nicht bezahlt"
+        FREIGETRAENKE = "freigetraenke", "Freigetränke (nicht erfasst)"
+        VERANSTALTUNG = "veranstaltung", "Veranstaltung inkl. Getränke"
+
+    zaehlung = models.ForeignKey(
+        Zaehlung, on_delete=models.CASCADE, related_name="differenz_zuordnungen"
+    )
+    kategorie = models.CharField(max_length=20, choices=Kategorie.choices)
+    betrag = models.DecimalField(
+        max_digits=9,
+        decimal_places=2,
+        help_text="Gleiches Vorzeichen wie die Kassendifferenz verwenden, "
+        "z.B. -15.00 bei fehlendem Geld.",
+    )
+    kommentar = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-zaehlung__datum", "kategorie"]
+        verbose_name = "Differenz-Zuordnung"
+        verbose_name_plural = "Differenz-Zuordnungen"
+
+    def __str__(self):
+        return f"{self.get_kategorie_display()}: {self.betrag} EUR ({self.zaehlung})"

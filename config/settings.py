@@ -146,7 +146,14 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        # Die Manifest-Variante verlangt einen vorherigen `collectstatic`-Lauf
+        # (macht docker-entrypoint.sh automatisch). Im Dev-/Test-Betrieb ohne
+        # vorherigen collectstatic-Lauf die einfache Variante verwenden.
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
     },
 }
 

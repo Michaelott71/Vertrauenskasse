@@ -1,0 +1,57 @@
+{% extends "kasse/base.html" %}
+{% block title %}Monatsauswertung – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Monatsauswertung</h1>
+  <p class="muted"><a href="{% url 'kasse:auswertung' %}">Zur Auswertung zwischen zwei Zaehlungen</a></p>
+
+  <div class="card">
+    <form method="get">
+      {{ monat_form.as_p }}
+      <button type="submit">Anzeigen</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Zaehlungen im {{ monat_start|date:"F Y" }}</h2>
+    {% if zaehlungen %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Datum</th><th>Notiz</th><th>Bargeld</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for z in zaehlungen %}
+              <tr>
+                <td>{{ z.datum }}</td>
+                <td>{{ z.notiz|default:"–" }}</td>
+                <td>{% if z.bargeld_gezaehlt is not None %}{{ z.bargeld_gezaehlt }} €{% else %}–{% endif %}</td>
+                <td>
+                  {% if z.vorherige_id %}
+                    <a href="{% url 'kasse:auswertung' %}?start={{ z.vorherige_id }}&ende={{ z.pk }}">Auswertung zur vorherigen</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Keine Zaehlungen in diesem Monat.</p>
+    {% endif %}
+  </div>
+
+  {% if error %}
+    <div class="card">
+      <p class="negative">{{ error }}</p>
+    </div>
+  {% endif %}
+
+  {% if result %}
+    <h2>Monatsergebnis (erste vs. letzte Zaehlung im Monat)</h2>
+    {% include "kasse/_auswertung_ergebnis.html" %}
+  {% elif zaehlungen|length == 1 %}
+    <div class="card">
+      <p class="muted">Nur eine Zaehlung in diesem Monat — fuer ein Monatsergebnis werden mindestens zwei benoetigt.</p>
+    </div>
+  {% endif %}
+{% endblock %}
