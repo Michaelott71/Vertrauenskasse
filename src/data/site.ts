@@ -21,8 +21,7 @@ export const site = {
   reviews: {
     count: 41,
     rating: 5,
-    // TODO: echten Link zum Google-Bewertungsprofil eintragen
-    url: 'https://www.google.com/maps/place/?q=place_id:TODO',
+    url: 'https://g.page/r/CX6XPYEZx-q-EAE/review',
   },
 
   // Tracking – IDs erst eintragen, wenn GTM/GA4-Container final eingerichtet sind
