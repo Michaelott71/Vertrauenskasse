@@ -1,0 +1,61 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+import { site } from '../data/site';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<section class="section" id="trainer">
+  <div class="container trainer__grid">
+    <div class="trainer__photo" aria-hidden="true">
+      <!-- TODO: Foto von Nick Ott einsetzen, sobald verfügbar -->
+      <span>Foto folgt</span>
+    </div>
+    <div>
+      <p class="eyebrow">{t('trainer.eyebrow')}</p>
+      <h2 class="section-title">{t('trainer.title')}</h2>
+      <p class="trainer__body">{t('trainer.body')}</p>
+      <a class="btn btn--outline" href={`${site.bookingUrl}`} data-cta="book-trainer">{t('trainer.cta')}</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .trainer__grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px) 1fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .trainer__photo {
+    aspect-ratio: 4 / 5;
+    background: var(--color-border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .trainer__body {
+    color: var(--color-text-muted);
+    max-width: 60ch;
+  }
+
+  @media (max-width: 720px) {
+    .trainer__grid {
+      grid-template-columns: 1fr;
+    }
+
+    .trainer__photo {
+      max-width: 260px;
+    }
+  }
+</style>

@@ -1,0 +1,43 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+import { site } from '../data/site';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<section class="section section--alt reviews">
+  <div class="container reviews__inner">
+    <div class="reviews__stars" aria-hidden="true">
+      {Array.from({ length: site.reviews.rating }).map(() => '★').join('')}
+    </div>
+    <p class="reviews__count">
+      {site.reviews.count} {t('reviews.body')}
+    </p>
+    <a class="btn btn--outline" href={site.reviews.url} target="_blank" rel="noopener noreferrer">
+      {t('reviews.cta')}
+    </a>
+  </div>
+</section>
+
+<style>
+  .reviews__inner {
+    text-align: center;
+  }
+
+  .reviews__stars {
+    font-size: 2rem;
+    color: var(--color-accent);
+    letter-spacing: 0.15em;
+  }
+
+  .reviews__count {
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 1.5rem;
+  }
+</style>

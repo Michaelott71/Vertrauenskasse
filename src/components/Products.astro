@@ -1,0 +1,29 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+// TODO: echte Produkte mit Preisen ergänzen, sobald Sortiment feststeht
+const products: Array<{ name: string; price: string }> = [];
+---
+
+<section class="section section--alt" id="products">
+  <div class="container">
+    <p class="eyebrow">{t('products.eyebrow')}</p>
+    <h2 class="section-title">{t('products.title')}</h2>
+
+    <div class="grid grid--3">
+      {products.map((product) => (
+        <div class="card">
+          <h4>{product.name}</h4>
+          <p>{product.price}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

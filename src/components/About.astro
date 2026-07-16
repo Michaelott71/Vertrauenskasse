@@ -1,0 +1,73 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const features = [
+  { icon: '🎯', title: t('features.accuracy.title'), body: t('features.accuracy.body') },
+  { icon: '⛳', title: t('features.courses.title'), body: t('features.courses.body') },
+  { icon: '☔', title: t('features.weather.title'), body: t('features.weather.body') },
+  { icon: '🕐', title: t('features.available.title'), body: t('features.available.body') },
+  { icon: '👥', title: t('features.social.title'), body: t('features.social.body') },
+];
+---
+
+<section class="section" id="about">
+  <div class="container">
+    <p class="eyebrow">{t('about.eyebrow')}</p>
+    <h2 class="section-title">{t('about.title')}</h2>
+    <div class="about__text">
+      <p>{t('about.p1')}</p>
+      <p>{t('about.p2')}</p>
+      <p>{t('about.p3')}</p>
+    </div>
+
+    <h3 class="features__title">{t('features.title')}</h3>
+    <div class="grid grid--3">
+      {features.map((feature) => (
+        <div class="card feature-card">
+          <span class="feature-card__icon" aria-hidden="true">{feature.icon}</span>
+          <h4>{feature.title}</h4>
+          <p>{feature.body}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .about__text {
+    max-width: 70ch;
+  }
+
+  .about__text p {
+    color: var(--color-text-muted);
+  }
+
+  .features__title {
+    margin-top: 3rem;
+    color: var(--color-primary);
+  }
+
+  .feature-card__icon {
+    font-size: 1.75rem;
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-card h4 {
+    margin: 0 0 0.4rem;
+    color: var(--color-primary);
+  }
+
+  .feature-card p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+</style>

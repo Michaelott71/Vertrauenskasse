@@ -1,0 +1,45 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const lang = 'de' as const;
+---
+
+<BaseLayout lang={lang} title={`Impressum – Majors Golfbox`}>
+  <div class="container legal">
+    <h1>Impressum</h1>
+
+    <p class="todo">
+      TODO: Diesen Platzhalter durch den vorbereiteten Impressum-Text ersetzen. Vor Veröffentlichung
+      Prüfung durch Anwalt/Datenschutzbeauftragten empfohlen. Pflichtangaben nach § 5 TMG sind unten
+      als Struktur vorgesehen.
+    </p>
+
+    <h2>Angaben gemäß § 5 TMG</h2>
+    <p>
+      [Firmenname]<br />
+      [Straße Hausnummer]<br />
+      [PLZ Ort]
+    </p>
+
+    <h2>Vertreten durch</h2>
+    <p>[Name der vertretungsberechtigten Person]</p>
+
+    <h2>Kontakt</h2>
+    <p>
+      Telefon: [Telefonnummer]<br />
+      E-Mail: [E-Mail-Adresse]
+    </p>
+
+    <h2>Umsatzsteuer-ID</h2>
+    <p>[Umsatzsteuer-Identifikationsnummer gemäß § 27a UStG, falls vorhanden]</p>
+
+    <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
+    <p>[Name, Anschrift]</p>
+
+    <h2>EU-Streitschlichtung</h2>
+    <p>
+      Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
+      https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie oben im Impressum.
+    </p>
+  </div>
+</BaseLayout>

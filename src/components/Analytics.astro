@@ -1,0 +1,57 @@
+---
+import { site } from '../data/site';
+
+const { gtmId } = site.tracking;
+---
+
+{gtmId && (
+  <>
+    {/*
+      Consent Mode v2: Standardmäßig wird jegliches Tracking abgelehnt (denied),
+      bevor der GTM-Container überhaupt lädt. Erst nach Nutzer-Zustimmung im
+      Cookie-Banner (siehe CookieConsent.astro) wird der Consent-Status per
+      gtag('consent','update', ...) aktualisiert. Die einzelnen Tags (GA4,
+      Google Ads) müssen im GTM-Container selbst auf "Zusätzliche Consent-Prüfungen"
+      (analytics_storage / ad_storage) konfiguriert werden.
+    */}
+    <script is:inline define:vars={{ gtmId }}>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        wait_for_update: 500,
+      });
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('mgb-cookie-consent') || 'null');
+        if (stored) {
+          gtag('consent', 'update', {
+            ad_storage: stored.ads ? 'granted' : 'denied',
+            ad_user_data: stored.ads ? 'granted' : 'denied',
+            ad_personalization: stored.ads ? 'granted' : 'denied',
+            analytics_storage: stored.analytics ? 'granted' : 'denied',
+          });
+        }
+      } catch (e) {
+        /* invalid stored value, keep defaults */
+      }
+
+      (function (w, d, s, l, i) {
+        w[l] = w[l] || [];
+        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+        const f = d.getElementsByTagName(s)[0];
+        const j = d.createElement(s);
+        const dl = l !== 'dataLayer' ? '&l=' + l : '';
+        j.async = true;
+        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+        f.parentNode.insertBefore(j, f);
+      })(window, document, 'script', 'dataLayer', gtmId);
+    </script>
+  </>
+)}

@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Hero from '../../components/Hero.astro';
+import About from '../../components/About.astro';
+import Pricing from '../../components/Pricing.astro';
+import Trainer from '../../components/Trainer.astro';
+import Tournaments from '../../components/Tournaments.astro';
+import FAQ from '../../components/FAQ.astro';
+import Reviews from '../../components/Reviews.astro';
+import Contact from '../../components/Contact.astro';
+import Products from '../../components/Products.astro';
+import { site } from '../../data/site';
+
+const lang = 'en' as const;
+---
+
+<BaseLayout lang={lang}>
+  <Hero lang={lang} />
+  <About lang={lang} />
+  <Pricing lang={lang} />
+  <Trainer lang={lang} />
+  <Tournaments lang={lang} />
+  <Reviews lang={lang} />
+  <FAQ lang={lang} />
+  {site.showProducts && <Products lang={lang} />}
+  <Contact lang={lang} />
+</BaseLayout>

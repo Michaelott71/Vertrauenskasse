@@ -1,0 +1,162 @@
+---
+import { useTranslations, getAlternateLang, localizedPath, languages, type Lang } from '../i18n/utils';
+import { site } from '../data/site';
+import tournamentsData from '../data/tournaments.json';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const altLang = getAlternateLang(lang);
+const altPath = localizedPath(altLang, Astro.url.pathname);
+
+const navItems: Array<{ href: string; label: string }> = [
+  { href: `#about`, label: t('nav.about') },
+  { href: `#pricing`, label: t('nav.pricing') },
+  { href: `#trainer`, label: t('nav.trainer') },
+  ...(tournamentsData.visible ? [{ href: `#tournaments`, label: t('nav.tournaments') }] : []),
+  { href: `#contact`, label: t('nav.contact') },
+];
+---
+
+<header class="header">
+  <div class="container header__inner">
+    <a href={`/${lang}`} class="header__brand">{site.name}</a>
+
+    <nav class="header__nav" id="primary-nav" aria-label="Hauptnavigation">
+      {navItems.map((item) => (
+        <a href={item.href}>{item.label}</a>
+      ))}
+    </nav>
+
+    <div class="header__actions">
+      <a class="lang-switch" href={altPath} hreflang={altLang}>{languages[altLang]}</a>
+      <a class="btn btn--primary btn--sm" href={site.bookingUrl}>{t('nav.book')}</a>
+      <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="primary-nav">
+        <span class="visually-hidden">Menü</span>
+        <span aria-hidden="true">☰</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding-block: 0.9rem;
+  }
+
+  .header__brand {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--color-primary);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .header__nav {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .header__nav a {
+    text-decoration: none;
+    font-weight: 500;
+    color: var(--color-text);
+    font-size: 0.95rem;
+  }
+
+  .header__nav a:hover {
+    color: var(--color-accent);
+  }
+
+  .header__actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .lang-switch {
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .btn--sm {
+    padding: 0.55rem 1.1rem;
+    font-size: 0.9rem;
+  }
+
+  .nav-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: var(--color-primary);
+  }
+
+  @media (max-width: 860px) {
+    .header__nav {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      flex-direction: column;
+      gap: 0;
+      padding: 0.5rem 1.5rem 1rem;
+      display: none;
+    }
+
+    .header__nav.is-open {
+      display: flex;
+    }
+
+    .header__nav a {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .nav-toggle {
+      display: inline-flex;
+    }
+  }
+</style>
+
+<script>
+  const toggle = document.getElementById('nav-toggle');
+  const nav = document.getElementById('primary-nav');
+
+  toggle?.addEventListener('click', () => {
+    const isOpen = nav?.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(Boolean(isOpen)));
+  });
+
+  nav?.querySelectorAll('a').forEach((link) => {
+    link.addEventListener('click', () => {
+      nav.classList.remove('is-open');
+      toggle?.setAttribute('aria-expanded', 'false');
+    });
+  });
+</script>

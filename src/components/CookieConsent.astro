@@ -1,0 +1,134 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const privacyPath = lang === 'de' ? '/de/datenschutz' : '/en/privacy';
+---
+
+<div id="cookie-banner" class="cookie-banner" hidden role="dialog" aria-live="polite" aria-label={t('cookie.title')}>
+  <div class="cookie-banner__inner">
+    <div class="cookie-banner__text">
+      <p class="cookie-banner__title">{t('cookie.title')}</p>
+      <p>{t('cookie.body')}</p>
+      <a href={privacyPath}>{t('cookie.privacyLink')}</a>
+    </div>
+    <div class="cookie-banner__actions">
+      <button type="button" class="btn btn--outline" id="cookie-reject">{t('cookie.rejectAll')}</button>
+      <button type="button" class="btn btn--primary" id="cookie-accept">{t('cookie.acceptAll')}</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .cookie-banner__inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .cookie-banner__text {
+    flex: 1 1 320px;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+  }
+
+  .cookie-banner__title {
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 0.25rem;
+  }
+
+  .cookie-banner__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+</style>
+
+<script>
+  const STORAGE_KEY = 'mgb-cookie-consent';
+
+  type Consent = { analytics: boolean; ads: boolean; timestamp: number };
+
+  function getGtag() {
+    return (window as any).gtag as ((...args: unknown[]) => void) | undefined;
+  }
+
+  function applyConsent(consent: Consent) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(consent));
+    const gtag = getGtag();
+    gtag?.('consent', 'update', {
+      ad_storage: consent.ads ? 'granted' : 'denied',
+      ad_user_data: consent.ads ? 'granted' : 'denied',
+      ad_personalization: consent.ads ? 'granted' : 'denied',
+      analytics_storage: consent.analytics ? 'granted' : 'denied',
+    });
+  }
+
+  function getStoredConsent(): Consent | null {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  const banner = document.getElementById('cookie-banner');
+
+  function showBanner() {
+    banner?.removeAttribute('hidden');
+  }
+
+  function hideBanner() {
+    banner?.setAttribute('hidden', '');
+  }
+
+  if (!getStoredConsent()) {
+    showBanner();
+  }
+
+  document.getElementById('cookie-accept')?.addEventListener('click', () => {
+    applyConsent({ analytics: true, ads: true, timestamp: Date.now() });
+    hideBanner();
+  });
+
+  document.getElementById('cookie-reject')?.addEventListener('click', () => {
+    applyConsent({ analytics: false, ads: false, timestamp: Date.now() });
+    hideBanner();
+  });
+
+  window.addEventListener('open-cookie-settings', showBanner);
+
+  // CTA-Klicks in dataLayer pushen, damit sie in GTM als Conversion-Trigger
+  // (z. B. "Angerufen", "Buchung gestartet") genutzt werden können.
+  // TODO: "Buchung abgeschlossen" muss zusätzlich als Event im Buchungsportal
+  // selbst getrackt werden, da der eigentliche Abschluss dort stattfindet.
+  document.querySelectorAll('[data-cta]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const cta = el.getAttribute('data-cta');
+      (window as any).dataLayer = (window as any).dataLayer || [];
+      (window as any).dataLayer.push({ event: 'cta_click', cta_type: cta });
+    });
+  });
+</script>

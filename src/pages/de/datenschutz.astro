@@ -1,0 +1,54 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const lang = 'de' as const;
+---
+
+<BaseLayout lang={lang} title={`Datenschutzerklärung – Majors Golfbox`}>
+  <div class="container legal">
+    <h1>Datenschutzerklärung</h1>
+
+    <p class="todo">
+      TODO: Diesen Platzhalter durch den vorbereiteten Datenschutztext ersetzen. Da diese Seite Google
+      Ads/Analytics-Tracking einsetzt, unbedingt vor Veröffentlichung durch Anwalt/Datenschutzbeauftragten
+      prüfen lassen. Die Struktur unten deckt die üblichen Pflichtabschnitte ab.
+    </p>
+
+    <h2>1. Verantwortlicher</h2>
+    <p>
+      [Firmenname]<br />
+      [Straße Hausnummer]<br />
+      [PLZ Ort]<br />
+      E-Mail: [E-Mail-Adresse]
+    </p>
+
+    <h2>2. Allgemeines zur Datenverarbeitung</h2>
+    <p>[Beschreibung, welche personenbezogenen Daten in welchem Umfang verarbeitet werden.]</p>
+
+    <h2>3. Cookies & Einwilligung</h2>
+    <p>
+      Diese Website verwendet Cookies. Beim ersten Besuch wird über ein Cookie-Banner die Einwilligung
+      zu nicht notwendigen Cookies (Analyse, Werbung) eingeholt. Die Einwilligung kann jederzeit über
+      den Link „Cookie-Einstellungen" im Footer widerrufen oder angepasst werden.
+    </p>
+
+    <h2>4. Google Tag Manager, Google Analytics & Google Ads</h2>
+    <p>
+      [Beschreibung der eingesetzten Google-Dienste, Zweck der Datenverarbeitung, Rechtsgrundlage
+      (Einwilligung gem. Art. 6 Abs. 1 lit. a DSGVO), Speicherdauer, Widerrufsmöglichkeit sowie ggf.
+      Auftragsverarbeitungsvertrag mit Google.]
+    </p>
+
+    <h2>5. Betroffenenrechte</h2>
+    <p>
+      Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
+      Datenübertragbarkeit sowie Widerspruch gegen die Verarbeitung Ihrer personenbezogenen Daten.
+    </p>
+
+    <h2>6. Beschwerderecht bei einer Aufsichtsbehörde</h2>
+    <p>
+      Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde über die Verarbeitung Ihrer
+      personenbezogenen Daten zu beschweren.
+    </p>
+  </div>
+</BaseLayout>

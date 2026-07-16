@@ -1,0 +1,62 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+import { site } from '../data/site';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const whatsappUrl = `https://wa.me/${site.contact.whatsappNumber}`;
+---
+
+<section class="section" id="contact">
+  <div class="container">
+    <p class="eyebrow">{t('contact.eyebrow')}</p>
+    <h2 class="section-title">{t('contact.title')}</h2>
+    <p class="section-intro">{t('contact.body')}</p>
+
+    <div class="grid grid--3 contact__grid">
+      <a class="card contact__card" href={site.contact.phoneHref} data-cta="call">
+        <span class="contact__label">{t('contact.phone')}</span>
+        <span class="contact__value">{site.contact.phoneDisplay}</span>
+      </a>
+      <a class="card contact__card" href={whatsappUrl} target="_blank" rel="noopener noreferrer" data-cta="whatsapp">
+        <span class="contact__label">{t('contact.whatsapp')}</span>
+        <span class="contact__value">WhatsApp</span>
+      </a>
+      <a class="card contact__card" href={`mailto:${site.contact.email}`} data-cta="email">
+        <span class="contact__label">{t('contact.email')}</span>
+        <span class="contact__value">{site.contact.email}</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .contact__grid {
+    margin-top: 2rem;
+  }
+
+  .contact__card {
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .contact__label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+  }
+
+  .contact__value {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--color-primary);
+  }
+</style>

@@ -1,0 +1,52 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+import tournamentsData from '../data/tournaments.json';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const { visible, items } = tournamentsData;
+---
+
+{visible && (
+  <section class="section section--alt" id="tournaments">
+    <div class="container">
+      <p class="eyebrow">{t('tournaments.eyebrow')}</p>
+      <h2 class="section-title">{t('tournaments.title')}</h2>
+
+      {items.length > 0 ? (
+        <div class="grid grid--3">
+          {items.map((item) => (
+            <div class="card">
+              <h4>{lang === 'de' ? item.titleDe : item.titleEn}</h4>
+              <p class="tournament__date">
+                {new Date(item.date).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+              <p>{lang === 'de' ? item.infoDe : item.infoEn}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p class="section-intro">{t('tournaments.empty')}</p>
+      )}
+
+      <a class="btn btn--outline" href="#contact">{t('tournaments.cta')}</a>
+    </div>
+  </section>
+)}
+
+<style>
+  .tournament__date {
+    font-weight: 600;
+    color: var(--color-accent);
+    margin: 0.25rem 0 0.75rem;
+  }
+</style>

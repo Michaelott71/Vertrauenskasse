@@ -1,0 +1,83 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+import { site } from '../data/site';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const legalBase = lang === 'de' ? '/de' : '/en';
+const imprintPath = lang === 'de' ? `${legalBase}/impressum` : `${legalBase}/imprint`;
+const privacyPath = lang === 'de' ? `${legalBase}/datenschutz` : `${legalBase}/privacy`;
+
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container footer__inner">
+    <p>&copy; {year} {site.name}. {t('footer.rights')}</p>
+    <nav class="footer__nav">
+      <a href={imprintPath}>{t('footer.legal.imprint')}</a>
+      <a href={privacyPath}>{t('footer.legal.privacy')}</a>
+      <button type="button" id="footer-cookie-settings" class="footer__cookie-btn">
+        {t('cookie.manageLink')}
+      </button>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    background: var(--color-primary);
+    color: rgba(255, 255, 255, 0.75);
+    padding: 2.5rem 0;
+    font-size: 0.9rem;
+  }
+
+  .footer__inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer__nav {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .footer__nav a {
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: none;
+  }
+
+  .footer__nav a:hover {
+    color: #fff;
+  }
+
+  .footer__cookie-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.75);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: inherit;
+    font-family: inherit;
+  }
+
+  .footer__cookie-btn:hover {
+    color: #fff;
+  }
+</style>
+
+<script>
+  document.getElementById('footer-cookie-settings')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('open-cookie-settings'));
+  });
+</script>

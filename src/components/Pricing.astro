@@ -1,0 +1,73 @@
+---
+import { useTranslations, type Lang } from '../i18n/utils';
+import { hourlyRates, membershipPlans } from '../data/pricing';
+import { site } from '../data/site';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<section class="section section--alt" id="pricing">
+  <div class="container">
+    <p class="eyebrow">{t('pricing.eyebrow')}</p>
+    <h2 class="section-title">{t('pricing.title')}</h2>
+    <p class="section-intro">{t('pricing.intro')}</p>
+
+    <h3 class="pricing__subtitle">{t('pricing.hourlyTitle')}</h3>
+    <div class="grid grid--2">
+      {hourlyRates.map((plan) => (
+        <div class="card">
+          <h4>{plan.nameKey}</h4>
+          <p class="pricing__price">{lang === 'de' ? plan.priceDe : plan.priceEn}</p>
+          <p class="pricing__desc">{lang === 'de' ? plan.descriptionKeyDe : plan.descriptionKeyEn}</p>
+        </div>
+      ))}
+    </div>
+
+    <h3 class="pricing__subtitle">{t('pricing.plansTitle')}</h3>
+    <div class="grid grid--3">
+      {membershipPlans.map((plan) => (
+        <div class={`card ${plan.highlight ? 'card--highlight' : ''}`}>
+          <h4>{plan.nameKey}</h4>
+          <p class="pricing__price">{lang === 'de' ? plan.priceDe : plan.priceEn}</p>
+          <p class="pricing__desc">{lang === 'de' ? plan.descriptionKeyDe : plan.descriptionKeyEn}</p>
+        </div>
+      ))}
+    </div>
+
+    <p class="pricing__note">{t('pricing.note')}</p>
+    <a class="btn btn--primary" href={site.bookingUrl} data-cta="book-now">{t('pricing.cta')}</a>
+  </div>
+</section>
+
+<style>
+  .pricing__subtitle {
+    margin-top: 3rem;
+    margin-bottom: 1.25rem;
+    color: var(--color-primary);
+  }
+
+  .pricing__price {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0.5rem 0;
+  }
+
+  .pricing__desc {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  .pricing__note {
+    margin-top: 2.5rem;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+</style>

@@ -1,0 +1,45 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const lang = 'en' as const;
+---
+
+<BaseLayout lang={lang} title={`Imprint – Majors Golfbox`}>
+  <div class="container legal">
+    <h1>Imprint</h1>
+
+    <p class="todo">
+      TODO: German law requires a German-language Impressum as the legally binding version; this English
+      page should be a translation of it, reviewed by a lawyer/data protection officer before publishing.
+    </p>
+
+    <h2>Information pursuant to § 5 TMG</h2>
+    <p>
+      [Company name]<br />
+      [Street, number]<br />
+      [Postal code, city]<br />
+      Germany
+    </p>
+
+    <h2>Represented by</h2>
+    <p>[Name of authorised representative]</p>
+
+    <h2>Contact</h2>
+    <p>
+      Phone: [phone number]<br />
+      Email: [email address]
+    </p>
+
+    <h2>VAT ID</h2>
+    <p>[VAT identification number pursuant to § 27a UStG, if applicable]</p>
+
+    <h2>Responsible for content pursuant to § 55 (2) RStV</h2>
+    <p>[Name, address]</p>
+
+    <h2>EU Dispute Resolution</h2>
+    <p>
+      The European Commission provides a platform for online dispute resolution (ODR):
+      https://ec.europa.eu/consumers/odr/. Our email address can be found above.
+    </p>
+  </div>
+</BaseLayout>
