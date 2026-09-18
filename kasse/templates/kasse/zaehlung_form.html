@@ -1,51 +1,86 @@
 {% extends "kasse/base.html" %}
-{% block title %}Neue Zaehlung – Vertrauenskasse{% endblock %}
+{% load static %}
+{% block title %}Neue Zählung – Vertrauenskasse{% endblock %}
 {% block content %}
-  <h1>Neue Zaehlung erfassen</h1>
+  <h1>Neue Zählung erfassen</h1>
 
-  {% if not formset.forms %}
+  {% if keine_artikel %}
     <div class="card">
-      <p class="muted">Es sind noch keine aktiven Getraenke angelegt. Bitte zuerst in der
-        <a href="{% url 'admin:kasse_getraenk_add' %}">Verwaltung</a> ein Getraenk anlegen.</p>
+      <p class="muted">Es sind noch keine aktiven Getränke angelegt. Bitte zuerst in der
+        <a href="{% url 'admin:kasse_getraenk_add' %}">Verwaltung</a> ein Getränk anlegen.</p>
     </div>
   {% else %}
-    <form method="post">
+    <form method="post" id="zaehlung-form">
       {% csrf_token %}
       <div class="card">
-        <h2>Allgemein</h2>
-        {{ zaehlung_form.as_p }}
+        {{ meta_form.as_p }}
       </div>
 
-      <div class="card">
-        <h2>Bestaende je Getraenk</h2>
-        {{ formset.management_form }}
-        {% if formset.non_form_errors %}
-          <p class="negative">{{ formset.non_form_errors }}</p>
-        {% endif %}
-        <div class="zaehlung-row muted">
-          <div>Getraenk</div>
-          <div>Vollbestand</div>
-          <div>Leergut</div>
-          <div>Rueckgabe Markt</div>
-        </div>
-        {% for form in formset %}
-          <div class="zaehlung-row">
-            <div class="drink-name">
-              {{ form.getraenk.as_hidden }}
-              {{ form.getraenk_name }}
-              {{ form.id }}
-            </div>
-            <div>{{ form.vollbestand_gezaehlt }}</div>
-            <div>{{ form.leergut_gezaehlt }}</div>
-            <div>{{ form.rueckgabe_an_getraenkemarkt }}</div>
+      {% for kategorie, artikel_liste in kategorien %}
+        <div class="card pfand-card">
+          <h2>{{ kategorie.name }} <span class="muted">({{ kategorie.pfandbetrag }} € Pfand)</span></h2>
+          <p class="muted">Vollbestand je Artikel zählen:</p>
+          <div class="kachel-grid">
+            {% for getraenk in artikel_liste %}
+              <div class="kachel" data-min="0">
+                <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
+                <div class="kachel-tap" role="button" tabindex="0">
+                  <div class="kachel-label">{{ getraenk.name }}</div>
+                  <div class="kachel-value">0</div>
+                </div>
+                <input type="hidden" name="bestand_{{ getraenk.id }}" class="kachel-input" value="0">
+              </div>
+            {% endfor %}
           </div>
-          {% if form.errors %}
-            <p class="negative">{{ form.errors }}</p>
-          {% endif %}
-        {% endfor %}
-      </div>
 
-      <button type="submit">Zaehlung speichern</button>
+          <p class="muted">Leergut dieser Kategorie (eine Zahl für alle Artikel):</p>
+          <div class="kachel-grid">
+            <div class="kachel kachel-leergut" data-min="0">
+              <button type="button" class="kachel-minus" aria-label="Leergut {{ kategorie.name }} verringern">−</button>
+              <div class="kachel-tap" role="button" tabindex="0">
+                <div class="kachel-label">Leergut gezählt</div>
+                <div class="kachel-value">0</div>
+              </div>
+              <input type="hidden" name="leergut_{{ kategorie.id }}" class="kachel-input" value="0">
+            </div>
+            <div class="kachel kachel-rueckgabe" data-min="0">
+              <button type="button" class="kachel-minus" aria-label="Rückgabe {{ kategorie.name }} verringern">−</button>
+              <div class="kachel-tap" role="button" tabindex="0">
+                <div class="kachel-label">Rückgabe an Getränkemarkt</div>
+                <div class="kachel-value">0</div>
+              </div>
+              <input type="hidden" name="rueckgabe_{{ kategorie.id }}" class="kachel-input" value="0">
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+
+      {% if snacks %}
+        <div class="card">
+          <h2>Snacks <span class="muted">(ohne Pfand)</span></h2>
+          <p class="muted">Vollbestand je Artikel zählen:</p>
+          <div class="kachel-grid">
+            {% for getraenk in snacks %}
+              <div class="kachel" data-min="0">
+                <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
+                <div class="kachel-tap" role="button" tabindex="0">
+                  <div class="kachel-label">{{ getraenk.name }}</div>
+                  <div class="kachel-value">0</div>
+                </div>
+                <input type="hidden" name="bestand_{{ getraenk.id }}" class="kachel-input" value="0">
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="save-bar">
+        <button type="submit" class="btn-save">Zählung speichern</button>
+      </div>
     </form>
   {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'kasse/kachel.js' %}"></script>
 {% endblock %}

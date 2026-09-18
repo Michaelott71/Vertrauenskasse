@@ -1,13 +1,62 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError
 from django.db import models
 
 
+def ist_monat_exportiert(datum):
+    """True, wenn fuer den Monat von `datum` bereits ein CSV-Export erstellt wurde.
+
+    Ab diesem Zeitpunkt gelten Korrekturen (Freigetraenke, Bestandskorrekturen, ...)
+    fuer diesen Monat nicht mehr rueckwirkend, siehe README.
+    """
+    return MonatsExport.objects.filter(jahr=datum.year, monat=datum.month).exists()
+
+
+class GesperrterMonatError(ValidationError):
+    pass
+
+
+def pruefe_monat_nicht_exportiert(datum, was="Diese Korrektur"):
+    if ist_monat_exportiert(datum):
+        raise GesperrterMonatError(
+            f"{was} faellt in {datum.month:02d}/{datum.year}, ein bereits als CSV "
+            "exportierter Monat. Nachtraege fuer exportierte Monate sind nicht mehr "
+            "rueckwirkend moeglich, sondern muessen als Vermerk im aktuellen Monat "
+            "erfasst werden."
+        )
+
+
+class Pfandkategorie(models.Model):
+    """Pfandklasse, z.B. "25 Cent Pfand". Mehrere Getraenke mit unterschiedlichem
+    Verkaufspreis koennen derselben Pfandkategorie angehoeren, da eine leere
+    Flasche/Kiste dieser Kategorie beim Leergut-Zaehlen immer gleich aussieht."""
+
+    name = models.CharField(max_length=100, unique=True)
+    pfandbetrag = models.DecimalField(max_digits=6, decimal_places=2)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Pfandkategorie"
+        verbose_name_plural = "Pfandkategorien"
+
+    def __str__(self):
+        return f"{self.name} ({self.pfandbetrag} EUR)"
+
+
 class Getraenk(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    pfandkategorie = models.ForeignKey(
+        Pfandkategorie,
+        on_delete=models.PROTECT,
+        related_name="getraenke",
+        null=True,
+        blank=True,
+        help_text="Leer lassen bei Snacks/Artikeln ohne Pfand.",
+    )
     warenpreis = models.DecimalField(
         max_digits=8, decimal_places=2, help_text="Einkaufspreis pro Einheit"
     )
-    pfand = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     verkaufspreis = models.DecimalField(max_digits=8, decimal_places=2)
     aktiv = models.BooleanField(default=True)
 
@@ -23,22 +72,22 @@ class Getraenk(models.Model):
 class Zaehlung(models.Model):
     datum = models.DateField()
     notiz = models.TextField(blank=True)
-    # Zusaetzlich zum vorgegebenen Datenmodell: das gezaehlte Bargeld muss
-    # irgendwo erfasst werden, da es fuer die Ist-Kasse-Berechnung benoetigt
-    # wird, im Modell aber sonst kein Feld dafuer vorgesehen ist.
+    belegnummer = models.CharField(
+        max_length=20,
+        unique=True,
+        blank=True,
+        help_text="Wird automatisch im Format VK-JJJJ-MM-NN vergeben.",
+    )
+    # Nicht im urspruenglichen Schema, aber ohne dieses Feld liesse sich die
+    # geforderte Formel "Ist-Kasse = gezaehltes Bargeld + PayPal-Zahlungen"
+    # nicht berechnen: das tatsaechlich gezaehlte Bargeld muss irgendwo erfasst
+    # werden. Siehe README, Abschnitt "Abweichungen vom Datenmodell".
     bargeld_gezaehlt = models.DecimalField(
         max_digits=9,
         decimal_places=2,
         null=True,
         blank=True,
         help_text="Gezaehltes Bargeld in der Kasse bei dieser Zaehlung",
-    )
-    bargeld_entnommen = models.DecimalField(
-        max_digits=9,
-        decimal_places=2,
-        default=0,
-        help_text="Wie viel von dem gezaehlten Bargeld direkt entnommen wurde "
-        "(z.B. eingezahlt). 0 lassen, wenn das Geld in der Kasse bleibt.",
     )
 
     class Meta:
@@ -47,10 +96,28 @@ class Zaehlung(models.Model):
         verbose_name_plural = "Zählungen"
 
     def __str__(self):
-        return f"Zaehlung vom {self.datum}"
+        return self.belegnummer or f"Zaehlung vom {self.datum}"
+
+    def _naechste_laufende_nummer(self):
+        vorhandene = Zaehlung.objects.filter(
+            datum__year=self.datum.year, datum__month=self.datum.month
+        ).exclude(pk=self.pk)
+        return vorhandene.count() + 1
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.datum, str):
+            from django.utils.dateparse import parse_date
+
+            self.datum = parse_date(self.datum)
+        if not self.belegnummer:
+            nr = self._naechste_laufende_nummer()
+            self.belegnummer = f"VK-{self.datum.year:04d}-{self.datum.month:02d}-{nr:02d}"
+        super().save(*args, **kwargs)
 
 
 class ZaehlungBestand(models.Model):
+    """Gezaehlter Vollbestand eines einzelnen Artikels (Getraenk) zu einer Zaehlung."""
+
     zaehlung = models.ForeignKey(
         Zaehlung, on_delete=models.CASCADE, related_name="bestaende"
     )
@@ -58,11 +125,6 @@ class ZaehlungBestand(models.Model):
         Getraenk, on_delete=models.PROTECT, related_name="bestaende"
     )
     vollbestand_gezaehlt = models.PositiveIntegerField()
-    leergut_gezaehlt = models.PositiveIntegerField()
-    rueckgabe_an_getraenkemarkt = models.PositiveIntegerField(
-        default=0,
-        help_text="Anzahl Leergut seit der letzten Zaehlung an den Getraenkemarkt zurueckgegeben",
-    )
 
     class Meta:
         constraints = [
@@ -76,6 +138,50 @@ class ZaehlungBestand(models.Model):
 
     def __str__(self):
         return f"{self.getraenk} @ {self.zaehlung}"
+
+    def clean(self):
+        if self.zaehlung_id:
+            pruefe_monat_nicht_exportiert(
+                self.zaehlung.datum, "Eine Bestandskorrektur"
+            )
+
+
+class ZaehlungLeergut(models.Model):
+    """Gezaehltes Leergut je Pfandkategorie zu einer Zaehlung (eine Zahl fuer alle
+    Artikel dieser Kategorie, da eine leere Flasche/Kiste immer gleich aussieht)."""
+
+    zaehlung = models.ForeignKey(
+        Zaehlung, on_delete=models.CASCADE, related_name="leergutbestaende"
+    )
+    pfandkategorie = models.ForeignKey(
+        Pfandkategorie, on_delete=models.PROTECT, related_name="leergutbestaende"
+    )
+    leergut_gezaehlt = models.PositiveIntegerField()
+    rueckgabe_an_getraenkemarkt = models.PositiveIntegerField(
+        default=0,
+        help_text="Anzahl Leergut dieser Kategorie seit der letzten Zaehlung an "
+        "den Getraenkemarkt zurueckgegeben",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["zaehlung", "pfandkategorie"],
+                name="unique_zaehlung_pfandkategorie",
+            )
+        ]
+        ordering = ["zaehlung", "pfandkategorie"]
+        verbose_name = "Zählungsleergut"
+        verbose_name_plural = "Zählungsleergut"
+
+    def __str__(self):
+        return f"{self.pfandkategorie} @ {self.zaehlung}"
+
+    def clean(self):
+        if self.zaehlung_id:
+            pruefe_monat_nicht_exportiert(
+                self.zaehlung.datum, "Eine Leergut-Korrektur"
+            )
 
 
 class Beleg(models.Model):
@@ -127,6 +233,10 @@ class Freigetraenk(models.Model):
     def __str__(self):
         return f"{self.anzahl}x {self.getraenk} frei am {self.datum}"
 
+    def clean(self):
+        if self.datum:
+            pruefe_monat_nicht_exportiert(self.datum, "Ein nachgetragenes Freigetränk")
+
 
 class PaypalZahlung(models.Model):
     datum = models.DateField()
@@ -137,11 +247,26 @@ class PaypalZahlung(models.Model):
         related_name="paypal_zahlungen",
         null=True,
         blank=True,
+        help_text="Wird beim monatlichen Abgleich anhand des Datums automatisch gesetzt.",
+    )
+    # Nicht im urspruenglichen Schema, aber als Eingabe fuer die automatische
+    # Zuordnung (Stichwortliste, RG-Nummer, fester Verwendungszweck) unverzichtbar.
+    verwendungszweck = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Betreff/Verwendungszweck aus dem PayPal-Export, Basis der Auto-Zuordnung.",
     )
     ist_getraenke_zahlung = models.BooleanField(
-        default=False,
-        help_text="Nur als 'Getraenke-Zahlung' markierte Betraege fliessen in die Ist-Kasse ein",
+        null=True,
+        blank=True,
+        help_text="Ja/Nein = entschieden. Leer = ungeklaert (Klaerungsliste).",
     )
+    zuordnungsgrund = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Von der automatischen Zuordnung gesetzt oder manuell dokumentiert.",
+    )
+    paypal_transaktions_id = models.CharField(max_length=64, unique=True)
 
     class Meta:
         ordering = ["-datum", "-id"]
@@ -158,30 +283,43 @@ class PaypalZahlung(models.Model):
                 "einer Zaehlung zugeordnet sein."
             )
 
+    @property
+    def ist_geklaert(self):
+        return self.ist_getraenke_zahlung is not None
 
-class DifferenzZuordnung(models.Model):
-    class Kategorie(models.TextChoices):
-        DIEBSTAHL = "diebstahl", "Diebstahl"
-        NICHT_BEZAHLT = "nicht_bezahlt", "Nicht bezahlt"
-        FREIGETRAENKE = "freigetraenke", "Freigetränke (nicht erfasst)"
-        VERANSTALTUNG = "veranstaltung", "Veranstaltung inkl. Getränke"
 
-    zaehlung = models.ForeignKey(
-        Zaehlung, on_delete=models.CASCADE, related_name="differenz_zuordnungen"
-    )
-    kategorie = models.CharField(max_length=20, choices=Kategorie.choices)
-    betrag = models.DecimalField(
-        max_digits=9,
-        decimal_places=2,
-        help_text="Gleiches Vorzeichen wie die Kassendifferenz verwenden, "
-        "z.B. -15.00 bei fehlendem Geld.",
-    )
-    kommentar = models.CharField(max_length=255, blank=True)
+class PaypalStichwort(models.Model):
+    """Erweiterbare Stichwortliste fuer die automatische PayPal-Zuordnung.
+    Nicht Teil des urspruenglich vorgegebenen Schemas, aber noetig, um die
+    geforderte "Stichwortliste (... erweiterbar)" ueberhaupt zu speichern."""
+
+    wort = models.CharField(max_length=100, unique=True)
 
     class Meta:
-        ordering = ["-zaehlung__datum", "kategorie"]
-        verbose_name = "Differenz-Zuordnung"
-        verbose_name_plural = "Differenz-Zuordnungen"
+        ordering = ["wort"]
+        verbose_name = "PayPal-Stichwort"
+        verbose_name_plural = "PayPal-Stichwörter"
 
     def __str__(self):
-        return f"{self.get_kategorie_display()}: {self.betrag} EUR ({self.zaehlung})"
+        return self.wort
+
+
+class MonatsExport(models.Model):
+    """Merkt sich, welche Monate bereits als CSV exportiert wurden, um die
+    Regel "Korrekturen nur bis zum Export rueckwirkend moeglich" durchzusetzen.
+    Nicht Teil des urspruenglich vorgegebenen Schemas."""
+
+    jahr = models.PositiveIntegerField()
+    monat = models.PositiveSmallIntegerField()
+    exportiert_am = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["jahr", "monat"], name="unique_monat_export")
+        ]
+        ordering = ["-jahr", "-monat"]
+        verbose_name = "Monatsexport"
+        verbose_name_plural = "Monatsexporte"
+
+    def __str__(self):
+        return f"Export {self.monat:02d}/{self.jahr} am {self.exportiert_am:%d.%m.%Y}"

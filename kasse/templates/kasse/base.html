@@ -11,9 +11,11 @@
     <a href="{% url 'kasse:home' %}">Vertrauenskasse</a>
     <nav>
       {% if user.is_authenticated %}
-        <a href="{% url 'kasse:zaehlung_neu' %}">Neue Zaehlung</a>
+        <a href="{% url 'kasse:zaehlung_neu' %}">Neue Zählung</a>
         <a href="{% url 'kasse:auswertung' %}">Auswertung</a>
         <a href="{% url 'kasse:monatsauswertung' %}">Monatsauswertung</a>
+        <a href="{% url 'kasse:paypal_abgleich' %}">PayPal-Abgleich</a>
+        <a href="{% url 'kasse:export_csv' %}">CSV-Export</a>
         <a href="{% url 'admin:index' %}">Verwaltung</a>
         <a href="{% url 'logout' %}">Abmelden</a>
       {% else %}
@@ -29,5 +31,6 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

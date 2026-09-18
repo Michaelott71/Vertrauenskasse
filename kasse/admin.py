@@ -3,19 +3,27 @@ from django.contrib import admin
 from .models import (
     Beleg,
     BelegPosition,
-    DifferenzZuordnung,
     Freigetraenk,
     Getraenk,
+    MonatsExport,
+    Pfandkategorie,
+    PaypalStichwort,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
+    ZaehlungLeergut,
 )
+
+
+@admin.register(Pfandkategorie)
+class PfandkategorieAdmin(admin.ModelAdmin):
+    list_display = ("name", "pfandbetrag")
 
 
 @admin.register(Getraenk)
 class GetraenkAdmin(admin.ModelAdmin):
-    list_display = ("name", "warenpreis", "pfand", "verkaufspreis", "aktiv")
-    list_filter = ("aktiv",)
+    list_display = ("name", "pfandkategorie", "warenpreis", "verkaufspreis", "aktiv")
+    list_filter = ("aktiv", "pfandkategorie")
     search_fields = ("name",)
 
 
@@ -24,15 +32,16 @@ class ZaehlungBestandInline(admin.TabularInline):
     extra = 1
 
 
-class DifferenzZuordnungInline(admin.TabularInline):
-    model = DifferenzZuordnung
-    extra = 0
+class ZaehlungLeergutInline(admin.TabularInline):
+    model = ZaehlungLeergut
+    extra = 1
 
 
 @admin.register(Zaehlung)
 class ZaehlungAdmin(admin.ModelAdmin):
-    list_display = ("datum", "notiz", "bargeld_gezaehlt", "bargeld_entnommen")
-    inlines = [ZaehlungBestandInline, DifferenzZuordnungInline]
+    list_display = ("belegnummer", "datum", "notiz", "bargeld_gezaehlt")
+    readonly_fields = ("belegnummer",)
+    inlines = [ZaehlungBestandInline, ZaehlungLeergutInline]
 
 
 class BelegPositionInline(admin.TabularInline):
@@ -54,5 +63,24 @@ class FreigetraenkAdmin(admin.ModelAdmin):
 
 @admin.register(PaypalZahlung)
 class PaypalZahlungAdmin(admin.ModelAdmin):
-    list_display = ("datum", "betrag", "zaehlung", "ist_getraenke_zahlung")
+    list_display = (
+        "datum",
+        "betrag",
+        "verwendungszweck",
+        "ist_getraenke_zahlung",
+        "zaehlung",
+        "zuordnungsgrund",
+    )
     list_filter = ("ist_getraenke_zahlung",)
+    search_fields = ("verwendungszweck", "paypal_transaktions_id")
+
+
+@admin.register(PaypalStichwort)
+class PaypalStichwortAdmin(admin.ModelAdmin):
+    list_display = ("wort",)
+    search_fields = ("wort",)
+
+
+@admin.register(MonatsExport)
+class MonatsExportAdmin(admin.ModelAdmin):
+    list_display = ("jahr", "monat", "exportiert_am")

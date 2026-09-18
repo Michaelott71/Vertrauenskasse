@@ -19,47 +19,5 @@
 
   {% if result %}
     {% include "kasse/_auswertung_ergebnis.html" %}
-
-    <div class="card">
-      <h2>Differenz zuordnen</h2>
-      <p class="muted">
-        Kassendifferenz: <strong>{{ result.kassendifferenz }} €</strong> —
-        zugeordnet: <strong>{{ zuordnung_summe }} €</strong> —
-        Rest offen:
-        <strong class="{% if zuordnung_rest != 0 %}negative{% else %}positive{% endif %}">
-          {{ zuordnung_rest }} €
-        </strong>
-      </p>
-
-      {% if zuordnungen %}
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr><th>Kategorie</th><th>Betrag</th><th>Kommentar</th></tr>
-            </thead>
-            <tbody>
-              {% for z in zuordnungen %}
-                <tr>
-                  <td>{{ z.get_kategorie_display }}</td>
-                  <td>{{ z.betrag }} €</td>
-                  <td>{{ z.kommentar|default:"–" }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <p class="muted">Noch keine Zuordnung erfasst.</p>
-      {% endif %}
-
-      <h3>Neue Zuordnung</h3>
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="start" value="{{ start_id }}">
-        <input type="hidden" name="ende" value="{{ ende_id }}">
-        {{ zuordnung_form.as_p }}
-        <button type="submit">Zuordnung speichern</button>
-      </form>
-    </div>
   {% endif %}
 {% endblock %}

@@ -1,60 +1,127 @@
 import calendar
-from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, Http404
+from django.db import transaction
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from . import matching
+from .export import erzeuge_csv, markiere_als_exportiert
 from .forms import (
     AuswertungAuswahlForm,
-    DifferenzZuordnungForm,
+    ExportForm,
     MonatsauswahlForm,
-    ZaehlungForm,
-    build_bestand_formset,
+    PaypalKlaerungForm,
+    PaypalZahlungForm,
+    ZaehlungMetaForm,
 )
-from .models import Getraenk, Zaehlung
+from .models import (
+    Getraenk,
+    MonatsExport,
+    Pfandkategorie,
+    PaypalZahlung,
+    Zaehlung,
+    ZaehlungBestand,
+    ZaehlungLeergut,
+)
 from .services import AuswertungError, berechne_auswertung
+
+
+def _int_aus_post(data, key):
+    try:
+        wert = int(data.get(key, "0") or "0")
+    except (TypeError, ValueError):
+        wert = 0
+    return max(wert, 0)
+
+
+def _kategorien_mit_aktiven_getraenken():
+    ergebnis = []
+    for kategorie in Pfandkategorie.objects.order_by("name"):
+        artikel = list(kategorie.getraenke.filter(aktiv=True).order_by("name"))
+        if artikel:
+            ergebnis.append((kategorie, artikel))
+    return ergebnis
 
 
 @login_required
 def home(request):
     zaehlungen = Zaehlung.objects.all()[:10]
-    return render(request, "kasse/home.html", {"zaehlungen": zaehlungen})
+    offene_paypal = matching.klaerungsliste().count()
+    return render(
+        request,
+        "kasse/home.html",
+        {"zaehlungen": zaehlungen, "offene_paypal": offene_paypal},
+    )
 
 
 @login_required
 def zaehlung_neu(request):
-    aktive_getraenke = list(Getraenk.objects.filter(aktiv=True))
+    kategorien = _kategorien_mit_aktiven_getraenken()
+    snacks = list(
+        Getraenk.objects.filter(aktiv=True, pfandkategorie__isnull=True).order_by("name")
+    )
+
+    if not kategorien and not snacks:
+        messages.info(
+            request,
+            "Es sind noch keine aktiven Getränke angelegt. Bitte zuerst in der "
+            "Verwaltung ein Getränk anlegen.",
+        )
+        return render(request, "kasse/zaehlung_form.html", {"keine_artikel": True})
 
     if request.method == "POST":
-        zaehlung_form = ZaehlungForm(request.POST)
-        formset = build_bestand_formset(len(aktive_getraenke), data=request.POST)
-        if zaehlung_form.is_valid() and formset.is_valid():
-            zaehlung = zaehlung_form.save()
-            bestaende = formset.save(commit=False)
-            for bestand in bestaende:
-                bestand.zaehlung = zaehlung
-                bestand.save()
-            messages.success(request, "Zaehlung wurde gespeichert.")
+        meta_form = ZaehlungMetaForm(request.POST)
+        if meta_form.is_valid():
+            with transaction.atomic():
+                zaehlung = meta_form.save()
+                for kategorie, artikel_liste in kategorien:
+                    for getraenk in artikel_liste:
+                        ZaehlungBestand.objects.create(
+                            zaehlung=zaehlung,
+                            getraenk=getraenk,
+                            vollbestand_gezaehlt=_int_aus_post(
+                                request.POST, f"bestand_{getraenk.id}"
+                            ),
+                        )
+                    ZaehlungLeergut.objects.create(
+                        zaehlung=zaehlung,
+                        pfandkategorie=kategorie,
+                        leergut_gezaehlt=_int_aus_post(
+                            request.POST, f"leergut_{kategorie.id}"
+                        ),
+                        rueckgabe_an_getraenkemarkt=_int_aus_post(
+                            request.POST, f"rueckgabe_{kategorie.id}"
+                        ),
+                    )
+                for getraenk in snacks:
+                    ZaehlungBestand.objects.create(
+                        zaehlung=zaehlung,
+                        getraenk=getraenk,
+                        vollbestand_gezaehlt=_int_aus_post(
+                            request.POST, f"bestand_{getraenk.id}"
+                        ),
+                    )
+            messages.success(
+                request, f"Zählung {zaehlung.belegnummer} wurde gespeichert."
+            )
             return redirect(reverse("kasse:home"))
     else:
-        zaehlung_form = ZaehlungForm()
-        formset = build_bestand_formset(len(aktive_getraenke))
-        for form, getraenk in zip(formset.forms, aktive_getraenke):
-            form.initial["getraenk"] = getraenk.pk
-
-    for form, getraenk in zip(formset.forms, aktive_getraenke):
-        form.getraenk_name = getraenk.name
+        meta_form = ZaehlungMetaForm(initial={"datum": timezone.localdate()})
 
     return render(
         request,
         "kasse/zaehlung_form.html",
-        {"zaehlung_form": zaehlung_form, "formset": formset},
+        {
+            "meta_form": meta_form,
+            "kategorien": kategorien,
+            "snacks": snacks,
+        },
     )
 
 
@@ -63,26 +130,9 @@ def auswertung(request):
     zaehlungen = Zaehlung.objects.all()
     result = None
     error = None
-    zuordnungen = []
-    zuordnung_summe = Decimal("0")
 
-    if request.method == "POST":
-        start_id = request.POST.get("start")
-        ende_id = request.POST.get("ende")
-        zuordnung_form = DifferenzZuordnungForm(request.POST)
-        if start_id and ende_id and zuordnung_form.is_valid():
-            ende = get_object_or_404(Zaehlung, pk=ende_id)
-            zuordnung = zuordnung_form.save(commit=False)
-            zuordnung.zaehlung = ende
-            zuordnung.save()
-            messages.success(request, "Differenz-Zuordnung wurde gespeichert.")
-            return redirect(
-                f"{reverse('kasse:auswertung')}?start={start_id}&ende={ende_id}"
-            )
-    else:
-        start_id = request.GET.get("start")
-        ende_id = request.GET.get("ende")
-        zuordnung_form = DifferenzZuordnungForm()
+    start_id = request.GET.get("start")
+    ende_id = request.GET.get("ende")
 
     initial = {}
     if start_id and ende_id:
@@ -104,9 +154,6 @@ def auswertung(request):
             result = berechne_auswertung(start, ende)
         except AuswertungError as exc:
             error = str(exc)
-        else:
-            zuordnungen = list(ende.differenz_zuordnungen.all())
-            zuordnung_summe = sum((z.betrag for z in zuordnungen), Decimal("0"))
 
     return render(
         request,
@@ -115,10 +162,6 @@ def auswertung(request):
             "form": form,
             "result": result,
             "error": error,
-            "zuordnungen": zuordnungen,
-            "zuordnung_summe": zuordnung_summe,
-            "zuordnung_rest": (result.kassendifferenz - zuordnung_summe) if result else None,
-            "zuordnung_form": zuordnung_form,
             "start_id": start_id,
             "ende_id": ende_id,
         },
@@ -154,6 +197,10 @@ def monatsauswertung(request):
         except AuswertungError as exc:
             error = str(exc)
 
+    bereits_exportiert = MonatsExport.objects.filter(
+        jahr=monat_start.year, monat=monat_start.month
+    ).exists()
+
     return render(
         request,
         "kasse/monatsauswertung.html",
@@ -163,7 +210,78 @@ def monatsauswertung(request):
             "zaehlungen": zaehlungen_im_monat,
             "result": result,
             "error": error,
+            "bereits_exportiert": bereits_exportiert,
         },
+    )
+
+
+@login_required
+def paypal_abgleich(request):
+    if request.method == "POST" and request.POST.get("formular") == "neu":
+        neu_form = PaypalZahlungForm(request.POST)
+        if neu_form.is_valid():
+            zahlung = neu_form.save(commit=False)
+            matching.ordne_zahlung_zu(zahlung)
+            zahlung.save()
+            if zahlung.ist_getraenke_zahlung:
+                zahlung.zaehlung = matching.ordne_zaehlung_zu(zahlung)
+                zahlung.save()
+            messages.success(
+                request,
+                f"PayPal-Zahlung erfasst: {zahlung.zuordnungsgrund}",
+            )
+            return redirect(reverse("kasse:paypal_abgleich"))
+    else:
+        neu_form = PaypalZahlungForm(initial={"datum": timezone.localdate()})
+
+    if request.method == "POST" and request.POST.get("formular") == "entscheidung":
+        klaerung_form = PaypalKlaerungForm(request.POST)
+        if klaerung_form.is_valid():
+            zahlung = get_object_or_404(
+                PaypalZahlung,
+                pk=klaerung_form.cleaned_data["zahlung_id"],
+            )
+            matching.entscheide_manuell(
+                zahlung,
+                klaerung_form.cleaned_data["entscheidung"] == "ja",
+                klaerung_form.cleaned_data["kommentar"],
+            )
+            messages.success(request, "Entscheidung gespeichert.")
+            return redirect(reverse("kasse:paypal_abgleich"))
+
+    offene = matching.klaerungsliste()
+    return render(
+        request,
+        "kasse/paypal_abgleich.html",
+        {"neu_form": neu_form, "offene": offene},
+    )
+
+
+@login_required
+def export_csv(request):
+    bereits_exportiert = MonatsExport.objects.order_by("-jahr", "-monat")[:12]
+
+    if request.method == "POST":
+        form = ExportForm(request.POST)
+        if form.is_valid():
+            monat_letzter_tag = form.cleaned_data["monat"]
+            jahr, monat = monat_letzter_tag.year, monat_letzter_tag.month
+            dateiname, csv_text, warnungen = erzeuge_csv(
+                jahr, monat, aggregiert=form.cleaned_data["aggregiert"]
+            )
+            markiere_als_exportiert(jahr, monat)
+            for warnung in warnungen:
+                messages.warning(request, warnung)
+            response = HttpResponse(csv_text, content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f'attachment; filename="{dateiname}"'
+            return response
+    else:
+        form = ExportForm(initial={"monat": timezone.localdate().replace(day=1)})
+
+    return render(
+        request,
+        "kasse/export.html",
+        {"form": form, "bereits_exportiert": bereits_exportiert},
     )
 
 
