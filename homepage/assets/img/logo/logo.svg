@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Majors Golfbox Logo (Platzhalter)">
-  <rect x="2" y="2" width="60" height="60" rx="8" fill="#0A0A0A"/>
-  <rect x="2" y="2" width="60" height="60" rx="8" fill="none" stroke="#DB6421" stroke-width="2"/>
-  <circle cx="32" cy="24" r="7" fill="#E5E5E5"/>
-  <path d="M32 31 L32 48" stroke="#E5E5E5" stroke-width="3" stroke-linecap="round"/>
-  <path d="M32 33 C 42 30, 42 40, 32 38" fill="none" stroke="#DB6421" stroke-width="3" stroke-linecap="round"/>
-  <line x1="20" y1="48" x2="44" y2="48" stroke="#474746" stroke-width="3" stroke-linecap="round"/>
-</svg>

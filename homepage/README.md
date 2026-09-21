@@ -39,12 +39,10 @@ kein Build noetig).
 
 ## Vor dem Live-Schalten noch zu erledigen
 
-1. **Logo**: `assets/img/logo/logo.svg` ist aktuell nur ein Platzhalter.
-   Die echte Logo-Datei wurde in einem anderen Claude-Chat hochgeladen, ist
-   aber in dieser Code-Session (arbeitet direkt auf dem GitHub-Repo) nicht
-   verfuegbar – Claude-Chat-Uploads und Claude-Code-Sessions teilen keinen
-   Dateizugriff. Bitte die Logo-Datei hier im Code-Chat direkt anhaengen,
-   dann wird sie eingebaut (Pfad `assets/img/logo/logo.svg` bzw. `.png`).
+1. ~~**Logo**~~ Erledigt. Echtes Logo eingebaut: `assets/img/logo/logo-icon.png`
+   (quadratische Wort-Bild-Marke, fuer Header/Favicon) und
+   `assets/img/logo/logo-full.png` (volles Lockup mit Schriftzug, als Asset
+   verfuegbar, aktuell nirgends fest eingebunden).
 2. **Schrift Qaranta Bold**: Kostet beim Schriftgestalter 5 $ Lizenzgebuehr
    fuer die kommerzielle Nutzung (dafont.com bietet nur die private Nutzung
    kostenlos an). Bis die Lizenz gekauft ist, verwendet die Seite
@@ -55,11 +53,12 @@ kein Build noetig).
    gekauft ist: `Qaranta-Bold.woff2` in `assets/fonts/` ablegen – sie wird
    dann automatisch statt Poppins verwendet, ohne dass sonst etwas
    geaendert werden muss.
-3. **Fotos**: Gleiches Problem wie beim Logo – die Fotos aus dem anderen
-   Claude-Chat sind hier nicht verfuegbar. Bitte hier im Code-Chat
-   anhaengen; sie werden dann in `assets/img/bay/`, `assets/img/trackman/`
-   bzw. `assets/img/partner/` abgelegt und in den passenden
-   `content/*.json` eingetragen (siehe oben).
+3. ~~**Bay-Fotos**~~ Erledigt – 4 echte Fotos in `assets/img/bay/`
+   eingebunden (`content/gallery.json`), darunter zwei mit dem
+   Hofgut-Georgenthal-Partnerbanner im Bild. **Trackman-„Know Your
+   Numbers"-Grafikset (12 Bilder) fehlt noch** – bitte ebenfalls hier
+   anhaengen, dann werden sie in `assets/img/trackman/` abgelegt und in
+   `content/trackman.json` eingetragen.
 4. **`content/config.json`**: `booking_url` durch die echte Adresse des
    Buchungsportals ersetzen, `google_ads_conversion_id` /
    `google_ads_label_booking` / `google_ads_label_call` /
@@ -102,8 +101,8 @@ homepage/
     js/main.js         i18n, Cookie-Consent, Slider, dynamisches Rendering
     fonts/              Qaranta Bold hier ablegen (Poppins Bold als Uebergangslösung bereits vorhanden)
     img/
-      logo/             Logo (Platzhalter bis echte Datei vorliegt)
-      bay/               Fotos der Anlage
-      trackman/          Trackman-Grafikset
-      partner/           Hofgut-Georgenthal-Fotos
+      logo/             Echtes Logo (logo-icon.png fuer Header/Favicon, logo-full.png als Lockup-Asset)
+      bay/               Fotos der Anlage (inkl. 2 Fotos mit Hofgut-Georgenthal-Partnerbanner)
+      trackman/          Trackman-Grafikset (noch zu ergaenzen)
+      partner/           Reserviert fuer eigenstaendige Hofgut-Georgenthal-Fotos (aktuell leer)
 ```

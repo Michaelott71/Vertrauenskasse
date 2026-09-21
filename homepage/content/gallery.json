@@ -3,18 +3,23 @@
   "images": [
     {
       "file": "bay-01.jpg",
-      "alt_de": "Golf-Simulator-Box bei Majors Golfbox",
-      "alt_en": "Golf simulator bay at Majors Golfbox"
+      "alt_de": "Gast schlaegt ab in der Majors Golfbox mit Trackman-Auswertung auf der Leinwand",
+      "alt_en": "Guest teeing off inside Majors Golfbox with the Trackman readout on screen"
     },
     {
       "file": "bay-02.jpg",
-      "alt_de": "Spielbereich mit Trackman-Technologie",
-      "alt_en": "Play area with Trackman technology"
+      "alt_de": "Zwei Simulator-Boxen bei Majors Golfbox mit Trackman- und Golfplatz-Ansicht",
+      "alt_en": "Two simulator bays at Majors Golfbox showing the Trackman and course view"
     },
     {
       "file": "bay-03.jpg",
-      "alt_de": "Lounge-Bereich der Golfbox",
-      "alt_en": "Lounge area at the golf box"
+      "alt_de": "Gaestin beim Abschlag in der Golfbox, in Kooperation mit Hofgut Georgenthal",
+      "alt_en": "Guest teeing off in the golf bay, in cooperation with Hofgut Georgenthal"
+    },
+    {
+      "file": "bay-04.jpg",
+      "alt_de": "Gaestin beim Training in der Golfbox, in Kooperation mit Hofgut Georgenthal",
+      "alt_en": "Guest training in the golf bay, in cooperation with Hofgut Georgenthal"
     }
   ]
 }
