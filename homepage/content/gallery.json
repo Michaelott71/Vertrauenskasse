@@ -1,0 +1,20 @@
+{
+  "_comment": "Fotos der Anlage. Neues Foto hinzufuegen: Datei in assets/img/bay/ ablegen und hier einen Eintrag ergaenzen. Reihenfolge in der Liste = Reihenfolge im Slider.",
+  "images": [
+    {
+      "file": "bay-01.jpg",
+      "alt_de": "Golf-Simulator-Box bei Majors Golfbox",
+      "alt_en": "Golf simulator bay at Majors Golfbox"
+    },
+    {
+      "file": "bay-02.jpg",
+      "alt_de": "Spielbereich mit Trackman-Technologie",
+      "alt_en": "Play area with Trackman technology"
+    },
+    {
+      "file": "bay-03.jpg",
+      "alt_de": "Lounge-Bereich der Golfbox",
+      "alt_en": "Lounge area at the golf box"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "_comment": "Aktuelle Turniere. Leeres 'active'-Array = der ganze Turniere-Abschnitt wird auf der Seite automatisch ausgeblendet. Eintrag entfernen oder hinzufuegen, sobald sich etwas aendert - kein Code-Aenderung noetig.",
+  "active": [
+    {
+      "title_de": "Edeka-Georg-Turnier",
+      "title_en": "Edeka Georg Tournament",
+      "cadence_de": "Woechentlich",
+      "cadence_en": "Weekly",
+      "prize_de": "Gutscheine von Edeka Georg",
+      "prize_en": "Vouchers from Edeka Georg"
+    },
+    {
+      "title_de": "Hofgut-Georgenthal-Trophy",
+      "title_en": "Hofgut Georgenthal Trophy",
+      "cadence_de": "Monatlich",
+      "cadence_en": "Monthly",
+      "prize_de": "Greenfee-Gutscheine",
+      "prize_en": "Green fee vouchers"
+    },
+    {
+      "title_de": "Feinkost-Dittmann-Schlemmercup",
+      "title_en": "Feinkost Dittmann Gourmet Cup",
+      "cadence_de": "Monatlich",
+      "cadence_en": "Monthly",
+      "prize_de": "Schlemmerkorb",
+      "prize_en": "Gourmet basket"
+    },
+    {
+      "title_de": "DGV Indoor Trophy, Golfhouse Trophy, Trackman-Turniere, PGA-Hessen-Turniere",
+      "title_en": "DGV Indoor Trophy, Golfhouse Trophy, Trackman tournaments, PGA Hessen tournaments",
+      "cadence_de": "Nach Ankuendigung",
+      "cadence_en": "As announced",
+      "prize_de": "Teilnahme in der Regel kostenlos",
+      "prize_en": "Entry usually free"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "_comment": "Zentrale Kontakt- und Tracking-Werte. Aenderungen hier wirken sofort auf der ganzen Seite - kein Code-Zugriff noetig.",
+
+  "phone_display": "0151 26637033",
+  "phone_href": "+4915126637033",
+
+  "phone_guthaben_display": "0151 42597642",
+  "phone_guthaben_href": "+4915142597642",
+  "phone_guthaben_note": "Abweichende Nummer laut Ausgangstext fuer Guthaben-Buchungen - bitte mit Michael Ott gegenchecken, ob diese zusaetzlich zur Hauptnummer gilt oder ein Tippfehler ist.",
+
+  "email": "info@majorsgolfbox.de",
+
+  "whatsapp_number": "4915126637033",
+  "whatsapp_note": "Nummer fuer WhatsApp Business - bitte bestaetigen, ob dieselbe wie phone_href verwendet werden soll.",
+
+  "booking_url": "https://booking.majorsgolfbox.de/",
+  "booking_url_note": "Platzhalter - bitte durch die echte URL des separaten Buchungsportals ersetzen.",
+
+  "address": {
+    "name": "Majors Golfbox",
+    "street": "Auf dem kleinen Feld 15",
+    "zip_city": "65232 Taunusstein-Neuhof"
+  },
+
+  "google_ads_conversion_id": "AW-XXXXXXXXX",
+  "google_ads_label_booking": "XXXXXXXXXXXX",
+  "google_ads_label_call": "XXXXXXXXXXXX",
+  "google_analytics_id": "G-XXXXXXXXXX",
+  "tracking_note": "Platzhalter-IDs - bitte durch echte Google Ads/GA4 IDs ersetzen, sobald Zugangsdaten geprueft sind. Tags laden erst nach Cookie-Einwilligung (siehe assets/js/main.js).",
+
+  "google_maps_url": "https://maps.google.com/?q=Auf+dem+kleinen+Feld+15,+65232+Taunusstein-Neuhof"
+}

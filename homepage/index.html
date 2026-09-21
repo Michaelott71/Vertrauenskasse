@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="meta.title">Majors Golfbox – Golfsimulator in Taunusstein</title>
+<meta name="description" content="" data-i18n-attr="content:meta.description">
+<link rel="icon" href="assets/img/logo/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#main" data-i18n="skip_link">Zum Inhalt springen</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#top">
+      <img src="assets/img/logo/logo.svg" alt="Majors Golfbox Logo" width="40" height="40">
+      <p class="brand-name">MAJORS <span class="accent">GOLFBOX</span></p>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="mainNav" aria-label="Menü">☰</button>
+    <nav class="main-nav" id="mainNav">
+      <ul class="nav-links">
+        <li><a href="#preise" data-i18n="nav.preise">Preise</a></li>
+        <li><a href="#trainer" data-i18n="nav.trainer">Training</a></li>
+        <li><a href="#ueber-uns" data-i18n="nav.ueber_uns">Über uns</a></li>
+        <li><a href="#turniere" data-i18n="nav.turniere">Turniere</a></li>
+        <li><a href="#kontakt" data-i18n="nav.kontakt">Kontakt</a></li>
+        <li><a class="btn btn-primary btn-small" id="navBookCta" href="#" target="_blank" rel="noopener" data-i18n="nav.jetzt_buchen" data-track="booking_click">Jetzt buchen</a></li>
+      </ul>
+      <div class="lang-switch" role="group" aria-label="Sprache">
+        <button type="button" data-lang="de" aria-pressed="true">DE</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- Hero -->
+  <section class="hero" id="top">
+    <div class="container hero-inner">
+      <div>
+        <span class="eyebrow" data-i18n="hero.eyebrow">Indoor Golf mit Trackman-Technologie</span>
+        <h1 data-i18n="hero.headline">Golf spielen, wann immer Ihr wollt</h1>
+        <p class="hero-subline" data-i18n="hero.subline">Trainieren, spielen und Turniere erleben.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" id="heroBookCta" href="#" target="_blank" rel="noopener" data-i18n="hero.cta_primary" data-track="booking_click">Jetzt buchen</a>
+          <a class="btn btn-outline" id="heroCallCta" href="#" data-i18n="hero.cta_secondary" data-track="call_click">Anrufen</a>
+        </div>
+        <p class="hero-note" data-i18n="hero.note">Bis zu 4 Personen pro Box · 55 Minuten Spielzeit</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Highlights -->
+  <section aria-labelledby="highlights-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="highlights-title" data-i18n="highlights.title">Warum Majors Golfbox?</h2>
+      </div>
+      <div class="highlight-grid" id="highlightGrid"></div>
+    </div>
+  </section>
+
+  <!-- Über uns -->
+  <section class="section-alt" id="ueber-uns" aria-labelledby="about-title">
+    <div class="container about-grid">
+      <div>
+        <h2 id="about-title" data-i18n="about.title">Über uns</h2>
+        <p data-i18n="about.text">…</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" id="aboutBookCta" href="#" target="_blank" rel="noopener" data-i18n="nav.jetzt_buchen" data-track="booking_click">Jetzt buchen</a>
+        </div>
+      </div>
+      <div>
+        <div class="slider" id="gallerySlider" aria-label="Fotogalerie">
+          <div class="slider-empty-note" data-i18n="gallery.title">Fotos folgen in Kürze.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trackman -->
+  <section class="section-dark" aria-labelledby="trackman-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="trackman-title" data-i18n="trackman.title">Das misst Trackman</h2>
+        <p class="section-subtitle" data-i18n="trackman.subtitle">UNLEASH YOUR POTENTIAL</p>
+      </div>
+      <div class="trackman-slider" id="trackmanSlider">
+        <div class="trackman-caption"><span class="accent" data-i18n="trackman.caption_prefix">Kennzahl:</span> <span id="trackmanCaptionText"></span></div>
+      </div>
+      <div class="trackman-nav">
+        <button type="button" id="trackmanPrev" aria-label="Zurück">‹</button>
+        <button type="button" id="trackmanNext" aria-label="Weiter">›</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Training -->
+  <section id="trainer" aria-labelledby="training-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="training-title" data-i18n="training.title">Training</h2>
+        <p data-i18n="training.text">…</p>
+        <span class="training-note" data-i18n="training.note"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Preise -->
+  <section class="section-alt" id="preise" aria-labelledby="preise-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="preise-title" data-i18n="preise.title">Preise</h2>
+        <p class="section-subtitle" data-i18n="preise.subtitle">Eine Spielstunde = 55 Minuten.</p>
+      </div>
+
+      <table class="price-table">
+        <thead>
+          <tr><th data-i18n="preise.table.zeitraum">Zeitraum</th><th data-i18n="preise.table.preis">Preis pro Stunde</th></tr>
+        </thead>
+        <tbody id="priceRows"></tbody>
+      </table>
+
+      <h3 style="margin-top:2rem" data-i18n="preise.guthaben_title">Guthaben-Pakete</h3>
+      <p class="text-muted" data-i18n="preise.guthaben_note"></p>
+      <div class="credit-grid" id="creditGrid"></div>
+
+      <div class="event-box">
+        <h3 data-i18n="preise.event_title">Eigenes Event in der Box</h3>
+        <p data-i18n="preise.event_text">Preis auf Anfrage.</p>
+      </div>
+
+      <div class="cta-row" style="margin-top:2rem">
+        <a class="btn btn-primary" id="priceBookCta" href="#" target="_blank" rel="noopener" data-i18n="preise.cta" data-track="booking_click">Jetzt Zeit buchen</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Turniere -->
+  <section id="turniere" aria-labelledby="turniere-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="turniere-title" data-i18n="turniere.title">Turniere</h2>
+        <p class="section-subtitle" data-i18n="turniere.subtitle"></p>
+      </div>
+      <div class="tournament-grid" id="tournamentGrid"></div>
+    </div>
+  </section>
+
+  <!-- Bewertungen -->
+  <section class="section-alt" aria-labelledby="reviews-title">
+    <div class="container reviews-wrap">
+      <h2 id="reviews-title" data-i18n="reviews.title">Was unsere Gäste sagen</h2>
+      <a class="reviews-badge" id="reviewsBadge" href="#" target="_blank" rel="noopener">
+        <span class="stars" id="reviewsStars">★★★★★</span>
+        <span><strong id="reviewsRating">5.0</strong> (<span id="reviewsCount">41</span> <span id="reviewsSuffix" data-i18n="reviews.text_suffix">Bewertungen bei Google</span>)</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section aria-labelledby="faq-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="faq-title" data-i18n="faq.title">Häufige Fragen</h2>
+      </div>
+      <div id="faqList" style="max-width:760px;margin:0 auto;"></div>
+    </div>
+  </section>
+
+  <!-- Kontakt -->
+  <section class="section-dark" id="kontakt" aria-labelledby="kontakt-title">
+    <div class="container">
+      <div class="section-head">
+        <h2 id="kontakt-title" data-i18n="contact.title">Kontakt</h2>
+        <p class="section-subtitle" data-i18n="contact.subtitle"></p>
+      </div>
+      <div class="contact-grid">
+        <div class="contact-card">
+          <h3 data-i18n="contact.phone_label">Telefon</h3>
+          <a id="contactPhone" href="#"></a>
+        </div>
+        <div class="contact-card">
+          <h3 data-i18n="contact.whatsapp_label">WhatsApp</h3>
+          <a id="contactWhatsapp" href="#" target="_blank" rel="noopener" data-i18n="contact.cta_whatsapp">WhatsApp schreiben</a>
+        </div>
+        <div class="contact-card">
+          <h3 data-i18n="contact.email_label">E-Mail</h3>
+          <a id="contactEmail" href="#"></a>
+        </div>
+        <div class="contact-card">
+          <h3 data-i18n="contact.address_label">Adresse</h3>
+          <a id="contactAddress" href="#" target="_blank" rel="noopener"></a>
+        </div>
+      </div>
+      <div class="cta-row" style="margin-top:var(--space-4)">
+        <a class="btn btn-primary" id="contactBookCta" href="#" target="_blank" rel="noopener" data-i18n="contact.cta_book" data-track="booking_click">Jetzt buchen</a>
+        <a class="btn btn-outline" id="contactCallCta" href="#" data-i18n="contact.cta_call" data-track="call_click">Anrufen</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <p style="margin:0" data-i18n="footer.partner_note">In Kooperation mit Hofgut Georgenthal</p>
+    <ul class="footer-links">
+      <li><a href="impressum.html" data-i18n="footer.impressum">Impressum</a></li>
+      <li><a href="datenschutz.html" data-i18n="footer.datenschutz">Datenschutz</a></li>
+    </ul>
+    <p style="margin:0">© <span id="year"></span> Majors Golfbox – <span data-i18n="footer.rights">Alle Rechte vorbehalten.</span></p>
+  </div>
+</footer>
+
+<div class="cookie-banner" id="cookieBanner" hidden role="dialog" aria-live="polite" aria-label="Cookie-Einstellungen">
+  <p data-i18n="cookie.text">Wir verwenden Cookies …</p>
+  <div class="cookie-actions">
+    <button type="button" class="btn btn-primary btn-small" id="cookieAcceptAll" data-i18n="cookie.accept_all">Alle akzeptieren</button>
+    <button type="button" class="btn btn-outline-dark btn-small" id="cookieNecessary" data-i18n="cookie.necessary_only">Nur notwendige</button>
+    <a class="btn-small" href="datenschutz.html" data-i18n="cookie.settings_link" style="align-self:center">Mehr dazu</a>
+  </div>
+</div>
+
+<script src="assets/js/main.js"></script>
+</body>
+</html>

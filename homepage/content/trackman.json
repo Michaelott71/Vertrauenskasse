@@ -1,0 +1,17 @@
+{
+  "_comment": "Trackman 'Know Your Numbers'-Grafikset (12 Bilder). Datei in assets/img/trackman/ ablegen, Dateiname hier eintragen. Rotiert automatisch als Karussell im Abschnitt 'Das misst Trackman'.",
+  "images": [
+    { "file": "trackman-attack-angle.jpg", "metric": "Attack Angle" },
+    { "file": "trackman-ball-speed.jpg", "metric": "Ball Speed" },
+    { "file": "trackman-carry.jpg", "metric": "Carry" },
+    { "file": "trackman-club-path.jpg", "metric": "Club Path" },
+    { "file": "trackman-club-speed.jpg", "metric": "Club Speed" },
+    { "file": "trackman-dynamic-loft.jpg", "metric": "Dynamic Loft" },
+    { "file": "trackman-face-angle.jpg", "metric": "Face Angle" },
+    { "file": "trackman-launch-angle.jpg", "metric": "Launch Angle" },
+    { "file": "trackman-smash-factor.jpg", "metric": "Smash Factor" },
+    { "file": "trackman-spin-rate.jpg", "metric": "Spin Rate" },
+    { "file": "trackman-total-distance.jpg", "metric": "Total Distance" },
+    { "file": "trackman-swing-plane.jpg", "metric": "Swing Plane" }
+  ]
+}

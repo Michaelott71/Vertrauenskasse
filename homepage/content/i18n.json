@@ -1,0 +1,313 @@
+{
+  "_comment": "Alle Texte der Seite, deutsch und englisch. Sprachumschaltung im Header tauscht per JS zwischen 'de' und 'en'. Struktur nicht aendern, nur Werte.",
+
+  "de": {
+    "meta": {
+      "title": "Majors Golfbox – Golfsimulator in Taunusstein | Trackman Indoor Golf",
+      "description": "Golf spielen und trainieren mit Trackman-Technologie – wetterunabhaengig, das ganze Jahr, mit bis zu 4 Personen. Jetzt Zeit buchen in Taunusstein-Neuhof."
+    },
+    "skip_link": "Zum Inhalt springen",
+    "nav": {
+      "preise": "Preise",
+      "trainer": "Training",
+      "ueber_uns": "Über uns",
+      "turniere": "Turniere",
+      "kontakt": "Kontakt",
+      "jetzt_buchen": "Jetzt buchen"
+    },
+    "lang_switch": { "label": "Sprache", "de": "DE", "en": "EN" },
+    "hero": {
+      "eyebrow": "Indoor Golf mit Trackman-Technologie",
+      "headline": "Golf spielen, wann immer Ihr wollt",
+      "subline": "Trainieren, spielen und Turniere erleben – wetterunabhaengig, praezise gemessen, mit Freunden. Auf über 300 Plätzen weltweit, ohne das Haus zu verlassen.",
+      "cta_primary": "Jetzt buchen",
+      "cta_secondary": "Anrufen",
+      "note": "Bis zu 4 Personen pro Box · 55 Minuten Spielzeit"
+    },
+    "highlights": {
+      "title": "Warum Majors Golfbox?",
+      "items": [
+        {
+          "title": "Praezise Trackman-Technologie",
+          "text": "26 gemessene Werte pro Schlag – von Ballspeed bis Spin Rate. So genau wie auf der echten Range, nur drinnen."
+        },
+        {
+          "title": "Über 300 Plätze weltweit",
+          "text": "Von lokalen Klassikern bis zu den schönsten Plätzen der Welt – alles spielbar in unserer Box."
+        },
+        {
+          "title": "Wetterunabhaengig, das ganze Jahr",
+          "text": "Regen, Kälte oder Dunkelheit – bei uns spielt Ihr trotzdem. Sommer wie Winter."
+        },
+        {
+          "title": "Spaß mit bis zu 4 Personen",
+          "text": "Ob Trainingsrunde oder Spaßabend mit Freunden – Fun-Spiele wie Nearest to the Pin, Longest Drive oder Capture the Flag inklusive."
+        }
+      ]
+    },
+    "about": {
+      "title": "Über uns",
+      "text": "Hier könnt Ihr im Sommer und im Winter trainieren, entspannte Runden mit Freunden spielen oder an Turnieren teilnehmen – von uns, von Trackman, Titleist oder der DGV Indoor Challenge. Trackman liefert Euch 26 gemessene Werte pro Schlag, dazu Fun-Spiele wie Nearest to the Pin, Longest Drive oder Capture the Flag, über 300 Plätze zum Spielen – darunter einige der schönsten der Welt – verschiedene Trainingsprogramme und mit Trackman Tracy sogar automatische, KI-gestützte Trainingsvorschläge. Spielt oder trainiert mit bis zu vier Personen in unserer Box. Der ideale Ort für Golf mit Spaßfaktor."
+    },
+    "trackman": {
+      "title": "Das misst Trackman",
+      "subtitle": "UNLEASH YOUR POTENTIAL – jeder Schlag liefert echte Daten statt Bauchgefuehl.",
+      "caption_prefix": "Kennzahl:"
+    },
+    "training": {
+      "title": "Training",
+      "text": "Verbessert Euer Spiel mit datenbasiertem Feedback: verschiedene Trainingsprogramme und individuelle Vorschläge von Trackman Tracy, unserer KI-gestützten Trainingsassistenz. Trainingszeiten bucht Ihr flexibel über unser Buchungsportal.",
+      "note": "Hinweis: Bitte bestätigen, ob zusätzlich persönliches Coaching durch Trainer angeboten wird – aktuell noch offen."
+    },
+    "preise": {
+      "title": "Preise",
+      "subtitle": "Eine Spielstunde = 55 Minuten, für einen reibungslosen Wechsel.",
+      "table": {
+        "zeitraum": "Zeitraum",
+        "preis": "Preis pro Stunde"
+      },
+      "rows": [
+        { "zeitraum": "Mo–Fr, 0–16 Uhr", "preis": "39,00 €" },
+        { "zeitraum": "Mo–Fr 16–24 Uhr sowie Sa/So/Feiertag 6–24 Uhr", "preis": "45,00 €" }
+      ],
+      "guthaben_title": "Guthaben-Pakete",
+      "guthaben_note": "Einmal aufladen, öfter sparen.",
+      "guthaben_rows": [
+        { "einzahlung": "270 €", "gutschrift": "300 € Guthaben" },
+        { "einzahlung": "500 €", "gutschrift": "600 € Guthaben" },
+        { "einzahlung": "1000 €", "gutschrift": "1300 € Guthaben" }
+      ],
+      "event_title": "Eigenes Event in der Box",
+      "event_text": "Preis auf Anfrage – meldet Euch telefonisch oder per E-Mail.",
+      "cta": "Jetzt Zeit buchen"
+    },
+    "gallery": {
+      "title": "Einblicke in die Box"
+    },
+    "turniere": {
+      "title": "Turniere",
+      "subtitle": "Regelmäßige Turniere mit Gewinnen unserer Partner – Teilnahme in der Regel kostenlos.",
+      "empty": "Aktuell sind keine Turniere angesetzt – schaut bald wieder vorbei."
+    },
+    "reviews": {
+      "title": "Was unsere Gäste sagen",
+      "text_suffix": "Bewertungen bei Google",
+      "cta": "Alle Bewertungen ansehen"
+    },
+    "faq": {
+      "title": "Häufige Fragen",
+      "items": [
+        {
+          "q": "Wie komme ich in die Box?",
+          "a": "Nach Eurer Buchung erhaltet Ihr alle Infos zum Zutritt. Reservieren könnt Ihr über die Webseite oder telefonisch."
+        },
+        {
+          "q": "Was muss ich mitbringen?",
+          "a": "Nur saubere Golfschläger und saubere Schuhe. Bälle stellen wir – aus eigenen Bällen dürft Ihr nicht spielen, das schützt unsere Leinwand."
+        },
+        {
+          "q": "Wie lange dauert eine Spielstunde?",
+          "a": "55 Minuten, damit der Wechsel zur nächsten Gruppe reibungslos klappt."
+        },
+        {
+          "q": "Kann ich meine Buchung ändern oder stornieren?",
+          "a": "Buchungsänderungen laufen über unser Buchungsportal. Eine Stornierung ist bis 24 Stunden vorher möglich."
+        },
+        {
+          "q": "Wie bezahle ich?",
+          "a": "Im Buchungsportal online oder bei telefonischer Reservierung vor Ort in bar oder mit EC-Karte."
+        },
+        {
+          "q": "Wie viele Personen passen in eine Box?",
+          "a": "Bis zu vier Personen können gemeinsam spielen oder trainieren."
+        },
+        {
+          "q": "Dürfen Minderjährige spielen?",
+          "a": "Ja, allerdings nur in Begleitung eines Erwachsenen."
+        },
+        {
+          "q": "Sind Gutscheine übertragbar?",
+          "a": "Ja, Gutscheine sind übertragbar. Eine Barauszahlung ist nicht möglich; es gilt die gesetzliche Verjährungsfrist."
+        }
+      ]
+    },
+    "contact": {
+      "title": "Kontakt",
+      "subtitle": "Wir sind für Euch da – ruft an, schreibt uns oder bucht direkt online.",
+      "phone_label": "Telefon",
+      "whatsapp_label": "WhatsApp",
+      "email_label": "E-Mail",
+      "address_label": "Adresse",
+      "cta_book": "Jetzt buchen",
+      "cta_call": "Anrufen",
+      "cta_whatsapp": "WhatsApp schreiben"
+    },
+    "footer": {
+      "rights": "Alle Rechte vorbehalten.",
+      "impressum": "Impressum",
+      "datenschutz": "Datenschutz",
+      "partner_note": "In Kooperation mit Hofgut Georgenthal"
+    },
+    "cookie": {
+      "text": "Wir verwenden Cookies für Google Ads und Analyse, um zu verstehen, wie unsere Seite genutzt wird. Nicht notwendige Cookies werden erst nach Eurer Zustimmung geladen.",
+      "accept_all": "Alle akzeptieren",
+      "necessary_only": "Nur notwendige",
+      "settings_link": "Mehr dazu in der Datenschutzerklärung"
+    }
+  },
+
+  "en": {
+    "meta": {
+      "title": "Majors Golfbox – Indoor Golf Simulator in Taunusstein | Trackman Golf",
+      "description": "Play and train with Trackman technology – all year round, whatever the weather, with up to 4 friends. Book your time in Taunusstein-Neuhof now."
+    },
+    "skip_link": "Skip to content",
+    "nav": {
+      "preise": "Prices",
+      "trainer": "Training",
+      "ueber_uns": "About us",
+      "turniere": "Tournaments",
+      "kontakt": "Contact",
+      "jetzt_buchen": "Book now"
+    },
+    "lang_switch": { "label": "Language", "de": "DE", "en": "EN" },
+    "hero": {
+      "eyebrow": "Indoor golf with Trackman technology",
+      "headline": "Play golf, whenever you like",
+      "subline": "Train, play and enjoy tournaments – whatever the weather, measured with precision, with friends. On 300+ courses worldwide, without leaving town.",
+      "cta_primary": "Book now",
+      "cta_secondary": "Call us",
+      "note": "Up to 4 people per bay · 55-minute playing hour"
+    },
+    "highlights": {
+      "title": "Why Majors Golfbox?",
+      "items": [
+        {
+          "title": "Precise Trackman technology",
+          "text": "26 measured values per shot – from ball speed to spin rate. As accurate as the real range, just indoors."
+        },
+        {
+          "title": "300+ courses worldwide",
+          "text": "From local classics to some of the most beautiful courses in the world – all playable in our bay."
+        },
+        {
+          "title": "Weatherproof, all year round",
+          "text": "Rain, cold or darkness – you still get to play. Summer and winter alike."
+        },
+        {
+          "title": "Fun with up to 4 people",
+          "text": "Whether it's a training session or a fun night with friends – games like Nearest to the Pin, Longest Drive and Capture the Flag included."
+        }
+      ]
+    },
+    "about": {
+      "title": "About us",
+      "text": "Train here in summer and winter, play relaxed rounds with friends, or take part in tournaments – ours, Trackman's, Titleist's or the DGV Indoor Challenge. Trackman gives you 26 measured values per shot, plus fun games like Nearest to the Pin, Longest Drive and Capture the Flag, 300+ courses to play – including some of the most beautiful in the world – various training programs, and with Trackman Tracy even automatic, AI-powered training suggestions. Play or train with up to four people in our bay. The ideal place for golf with a real fun factor."
+    },
+    "trackman": {
+      "title": "What Trackman measures",
+      "subtitle": "UNLEASH YOUR POTENTIAL – every shot gives you real data instead of guesswork.",
+      "caption_prefix": "Metric:"
+    },
+    "training": {
+      "title": "Training",
+      "text": "Improve your game with data-driven feedback: various training programs and individual suggestions from Trackman Tracy, our AI-powered training assistant. Book training time flexibly through our booking portal.",
+      "note": "Note: please confirm whether personal coaching by trainers is also offered – currently still open."
+    },
+    "preise": {
+      "title": "Prices",
+      "subtitle": "One playing hour = 55 minutes, for a smooth changeover.",
+      "table": {
+        "zeitraum": "Time",
+        "preis": "Price per hour"
+      },
+      "rows": [
+        { "zeitraum": "Mon–Fri, 0–4pm", "preis": "€39.00" },
+        { "zeitraum": "Mon–Fri 4pm–midnight and Sat/Sun/public holidays 6am–midnight", "preis": "€45.00" }
+      ],
+      "guthaben_title": "Credit packages",
+      "guthaben_note": "Top up once, save more often.",
+      "guthaben_rows": [
+        { "einzahlung": "€270", "gutschrift": "€300 credit" },
+        { "einzahlung": "€500", "gutschrift": "€600 credit" },
+        { "einzahlung": "€1000", "gutschrift": "€1300 credit" }
+      ],
+      "event_title": "Private event in the bay",
+      "event_text": "Price on request – get in touch by phone or email.",
+      "cta": "Book a time now"
+    },
+    "gallery": {
+      "title": "A look inside"
+    },
+    "turniere": {
+      "title": "Tournaments",
+      "subtitle": "Regular tournaments with prizes from our partners – entry is usually free.",
+      "empty": "No tournaments are currently scheduled – check back soon."
+    },
+    "reviews": {
+      "title": "What our guests say",
+      "text_suffix": "reviews on Google",
+      "cta": "See all reviews"
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "q": "How do I get into the bay?",
+          "a": "After booking, you'll receive all access details. You can reserve online or by phone."
+        },
+        {
+          "q": "What do I need to bring?",
+          "a": "Just clean golf clubs and clean shoes. We provide the balls – you can't play with your own, as that protects our screen."
+        },
+        {
+          "q": "How long is a playing hour?",
+          "a": "55 minutes, so the changeover to the next group runs smoothly."
+        },
+        {
+          "q": "Can I change or cancel my booking?",
+          "a": "Booking changes go through our booking portal. Cancellation is possible up to 24 hours in advance."
+        },
+        {
+          "q": "How do I pay?",
+          "a": "Online in the booking portal, or in cash/EC card on site for phone reservations."
+        },
+        {
+          "q": "How many people fit in one bay?",
+          "a": "Up to four people can play or train together."
+        },
+        {
+          "q": "Can minors play?",
+          "a": "Yes, but only accompanied by an adult."
+        },
+        {
+          "q": "Are vouchers transferable?",
+          "a": "Yes, vouchers are transferable. Cash payout is not possible; the statutory limitation period applies."
+        }
+      ]
+    },
+    "contact": {
+      "title": "Contact",
+      "subtitle": "We're here for you – call, message us, or book directly online.",
+      "phone_label": "Phone",
+      "whatsapp_label": "WhatsApp",
+      "email_label": "Email",
+      "address_label": "Address",
+      "cta_book": "Book now",
+      "cta_call": "Call us",
+      "cta_whatsapp": "Message on WhatsApp"
+    },
+    "footer": {
+      "rights": "All rights reserved.",
+      "impressum": "Legal notice",
+      "datenschutz": "Privacy policy",
+      "partner_note": "In cooperation with Hofgut Georgenthal"
+    },
+    "cookie": {
+      "text": "We use cookies for Google Ads and analytics to understand how our site is used. Non-essential cookies only load after you consent.",
+      "accept_all": "Accept all",
+      "necessary_only": "Necessary only",
+      "settings_link": "More in our privacy policy"
+    }
+  }
+}
