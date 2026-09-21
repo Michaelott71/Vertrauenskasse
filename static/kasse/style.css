@@ -196,10 +196,6 @@ button:hover, .btn:hover {
 /* Kachel-UI: Zaehlung wie an einem Kassensystem, gross und mit dem Daumen
    bedienbar. Antippen = +1, Minus-Symbol oder langes Druecken = -1. */
 
-.pfand-card h2 {
-  margin-bottom: 0.2rem;
-}
-
 .kachel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -263,11 +259,6 @@ button:hover, .btn:hover {
   line-height: 1;
   padding: 0;
   z-index: 2;
-}
-
-.kachel-leergut .kachel-value,
-.kachel-rueckgabe .kachel-value {
-  color: var(--color-text);
 }
 
 .save-bar {

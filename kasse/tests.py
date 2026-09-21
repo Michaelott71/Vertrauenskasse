@@ -15,12 +15,10 @@ from .models import (
     Getraenk,
     GesperrterMonatError,
     MonatsExport,
-    Pfandkategorie,
     PaypalStichwort,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
-    ZaehlungLeergut,
 )
 from .services import AuswertungError, berechne_auswertung
 
@@ -49,14 +47,11 @@ class BelegnummerTests(TestCase):
 
 class AuswertungTests(TestCase):
     def setUp(self):
-        self.pfand25 = Pfandkategorie.objects.create(name="25 Cent Pfand", pfandbetrag=Decimal("0.25"))
         self.wasser = Getraenk.objects.create(
-            name="Wasser", pfandkategorie=self.pfand25,
-            warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
         )
         self.cola = Getraenk.objects.create(
-            name="Cola", pfandkategorie=self.pfand25,
-            warenpreis=Decimal("0.40"), verkaufspreis=Decimal("2.50"),
+            name="Cola", warenpreis=Decimal("0.40"), verkaufspreis=Decimal("2.50"),
         )
         self.twix = Getraenk.objects.create(
             name="Twix", warenpreis=Decimal("0.30"), verkaufspreis=Decimal("1.00"),
@@ -67,16 +62,11 @@ class AuswertungTests(TestCase):
         ZaehlungBestand.objects.create(zaehlung=self.start, getraenk=self.wasser, vollbestand_gezaehlt=100)
         ZaehlungBestand.objects.create(zaehlung=self.start, getraenk=self.cola, vollbestand_gezaehlt=50)
         ZaehlungBestand.objects.create(zaehlung=self.start, getraenk=self.twix, vollbestand_gezaehlt=20)
-        ZaehlungLeergut.objects.create(zaehlung=self.start, pfandkategorie=self.pfand25, leergut_gezaehlt=30)
 
-    def _ende_bestand(self, wasser=40, cola=20, twix=10, leergut=80, rueckgabe=0):
+    def _ende_bestand(self, wasser=40, cola=20, twix=10):
         ZaehlungBestand.objects.create(zaehlung=self.ende, getraenk=self.wasser, vollbestand_gezaehlt=wasser)
         ZaehlungBestand.objects.create(zaehlung=self.ende, getraenk=self.cola, vollbestand_gezaehlt=cola)
         ZaehlungBestand.objects.create(zaehlung=self.ende, getraenk=self.twix, vollbestand_gezaehlt=twix)
-        ZaehlungLeergut.objects.create(
-            zaehlung=self.ende, pfandkategorie=self.pfand25,
-            leergut_gezaehlt=leergut, rueckgabe_an_getraenkemarkt=rueckgabe,
-        )
 
     def test_verkauft_und_soll_kasse_je_artikel_mit_unterschiedlichem_preis(self):
         # Wasser 100 -> 40 = 60 verkauft * 1.50; Cola 50 -> 20 = 30 verkauft * 2.50
@@ -107,31 +97,6 @@ class AuswertungTests(TestCase):
         ergebnis = berechne_auswertung(self.start, self.ende)
         wasser_pos = next(p for p in ergebnis.positionen if p.getraenk == self.wasser)
         self.assertEqual(wasser_pos.verkauft, 55)
-
-    def test_leergut_wird_pro_kategorie_nicht_pro_artikel_gerechnet(self):
-        # Verkauft gesamt in der Kategorie: Wasser 60 + Cola 30 = 90
-        # Erwartetes Leergut = 30 (Start) + 90 - 0 (Rueckgabe) = 120
-        self._ende_bestand(leergut=120)
-        ergebnis = berechne_auswertung(self.start, self.ende)
-        self.assertEqual(len(ergebnis.leergut_positionen), 1)
-        pos = ergebnis.leergut_positionen[0]
-        self.assertEqual(pos.verkauft_gesamt, 90)
-        self.assertEqual(pos.erwartetes_leergut, 120)
-        self.assertEqual(pos.leergut_differenz, 0)
-
-    def test_leergut_differenz_negativ_bei_schwund(self):
-        self._ende_bestand(leergut=110)
-        ergebnis = berechne_auswertung(self.start, self.ende)
-        pos = ergebnis.leergut_positionen[0]
-        self.assertEqual(pos.leergut_differenz, -10)
-
-    def test_rueckgabe_reduziert_erwartetes_leergut(self):
-        self._ende_bestand(leergut=90, rueckgabe=30)
-        ergebnis = berechne_auswertung(self.start, self.ende)
-        pos = ergebnis.leergut_positionen[0]
-        # 30 Start + 90 verkauft - 30 Rueckgabe = 90 erwartet
-        self.assertEqual(pos.erwartetes_leergut, 90)
-        self.assertEqual(pos.leergut_differenz, 0)
 
     def test_bar_anteil_ist_differenz_des_gezaehlten_bargelds(self):
         self._ende_bestand()
@@ -274,17 +239,13 @@ class MonatsExportLockTests(TestCase):
 
 class CsvExportTests(TestCase):
     def setUp(self):
-        self.pfand = Pfandkategorie.objects.create(name="25 Cent Pfand", pfandbetrag=Decimal("0.25"))
         self.wasser = Getraenk.objects.create(
-            name="Wasser", pfandkategorie=self.pfand,
-            warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
         )
         self.start = _zaehlung("2026-06-01", "0")
         self.ende = _zaehlung("2026-06-15", "60.00")
         ZaehlungBestand.objects.create(zaehlung=self.start, getraenk=self.wasser, vollbestand_gezaehlt=100)
         ZaehlungBestand.objects.create(zaehlung=self.ende, getraenk=self.wasser, vollbestand_gezaehlt=60)
-        ZaehlungLeergut.objects.create(zaehlung=self.start, pfandkategorie=self.pfand, leergut_gezaehlt=0)
-        ZaehlungLeergut.objects.create(zaehlung=self.ende, pfandkategorie=self.pfand, leergut_gezaehlt=40)
         PaypalZahlung.objects.create(
             datum="2026-06-10", betrag=Decimal("10.00"), zaehlung=self.ende,
             paypal_transaktions_id="TX-99", ist_getraenke_zahlung=True,
@@ -323,10 +284,8 @@ class CsvExportTests(TestCase):
 class ZaehlungNeuViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="pw12345678")
-        self.pfand = Pfandkategorie.objects.create(name="25 Cent Pfand", pfandbetrag=Decimal("0.25"))
         self.wasser = Getraenk.objects.create(
-            name="Wasser", pfandkategorie=self.pfand,
-            warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
         )
         self.twix = Getraenk.objects.create(
             name="Twix", warenpreis=Decimal("0.30"), verkaufspreis=Decimal("1.00")
@@ -337,9 +296,8 @@ class ZaehlungNeuViewTests(TestCase):
         response = self.client.get(reverse("kasse:zaehlung_neu"))
         self.assertContains(response, "Wasser")
         self.assertContains(response, "Twix")
-        self.assertContains(response, "25 Cent Pfand")
 
-    def test_post_speichert_bestand_und_leergut(self):
+    def test_post_speichert_bestand(self):
         response = self.client.post(
             reverse("kasse:zaehlung_neu"),
             {
@@ -348,8 +306,6 @@ class ZaehlungNeuViewTests(TestCase):
                 "bargeld_gezaehlt": "50.00",
                 f"bestand_{self.wasser.id}": "80",
                 f"bestand_{self.twix.id}": "15",
-                f"leergut_{self.pfand.id}": "12",
-                f"rueckgabe_{self.pfand.id}": "0",
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -361,10 +317,6 @@ class ZaehlungNeuViewTests(TestCase):
         self.assertEqual(
             ZaehlungBestand.objects.get(zaehlung=zaehlung, getraenk=self.twix).vollbestand_gezaehlt,
             15,
-        )
-        self.assertEqual(
-            ZaehlungLeergut.objects.get(zaehlung=zaehlung, pfandkategorie=self.pfand).leergut_gezaehlt,
-            12,
         )
 
 

@@ -66,38 +66,3 @@
     </table>
   </div>
 </div>
-
-<div class="card">
-  <h2>Leergut je Pfandkategorie</h2>
-  <div class="table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>Pfandkategorie</th>
-          <th>Leergut Start</th>
-          <th>Verkauft (Kategorie)</th>
-          <th>Rückgabe Markt</th>
-          <th>Erw. Leergut</th>
-          <th>Leergut Ende</th>
-          <th>Differenz</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for l in result.leergut_positionen %}
-          <tr>
-            <td>{{ l.pfandkategorie.name }}</td>
-            <td>{{ l.leergut_start }}</td>
-            <td>{{ l.verkauft_gesamt }}</td>
-            <td>{{ l.rueckgabe_an_getraenkemarkt }}</td>
-            <td>{{ l.erwartetes_leergut }}</td>
-            <td>{{ l.leergut_ende }}</td>
-            <td class="{% if l.leergut_differenz < 0 %}negative{% else %}positive{% endif %}">
-              {{ l.leergut_differenz }}
-              {% if l.leergut_differenz < 0 %}(Schwund){% elif l.leergut_differenz > 0 %}(Fund){% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>

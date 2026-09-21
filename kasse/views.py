@@ -23,11 +23,9 @@ from .forms import (
 from .models import (
     Getraenk,
     MonatsExport,
-    Pfandkategorie,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
-    ZaehlungLeergut,
 )
 from .services import AuswertungError, berechne_auswertung
 
@@ -38,15 +36,6 @@ def _int_aus_post(data, key):
     except (TypeError, ValueError):
         wert = 0
     return max(wert, 0)
-
-
-def _kategorien_mit_aktiven_getraenken():
-    ergebnis = []
-    for kategorie in Pfandkategorie.objects.order_by("name"):
-        artikel = list(kategorie.getraenke.filter(aktiv=True).order_by("name"))
-        if artikel:
-            ergebnis.append((kategorie, artikel))
-    return ergebnis
 
 
 @login_required
@@ -62,12 +51,9 @@ def home(request):
 
 @login_required
 def zaehlung_neu(request):
-    kategorien = _kategorien_mit_aktiven_getraenken()
-    snacks = list(
-        Getraenk.objects.filter(aktiv=True, pfandkategorie__isnull=True).order_by("name")
-    )
+    artikel = list(Getraenk.objects.filter(aktiv=True).order_by("name"))
 
-    if not kategorien and not snacks:
+    if not artikel:
         messages.info(
             request,
             "Es sind noch keine aktiven Getränke angelegt. Bitte zuerst in der "
@@ -80,26 +66,7 @@ def zaehlung_neu(request):
         if meta_form.is_valid():
             with transaction.atomic():
                 zaehlung = meta_form.save()
-                for kategorie, artikel_liste in kategorien:
-                    for getraenk in artikel_liste:
-                        ZaehlungBestand.objects.create(
-                            zaehlung=zaehlung,
-                            getraenk=getraenk,
-                            vollbestand_gezaehlt=_int_aus_post(
-                                request.POST, f"bestand_{getraenk.id}"
-                            ),
-                        )
-                    ZaehlungLeergut.objects.create(
-                        zaehlung=zaehlung,
-                        pfandkategorie=kategorie,
-                        leergut_gezaehlt=_int_aus_post(
-                            request.POST, f"leergut_{kategorie.id}"
-                        ),
-                        rueckgabe_an_getraenkemarkt=_int_aus_post(
-                            request.POST, f"rueckgabe_{kategorie.id}"
-                        ),
-                    )
-                for getraenk in snacks:
+                for getraenk in artikel:
                     ZaehlungBestand.objects.create(
                         zaehlung=zaehlung,
                         getraenk=getraenk,
@@ -119,8 +86,7 @@ def zaehlung_neu(request):
         "kasse/zaehlung_form.html",
         {
             "meta_form": meta_form,
-            "kategorien": kategorien,
-            "snacks": snacks,
+            "artikel": artikel,
         },
     )
 

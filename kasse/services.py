@@ -1,5 +1,5 @@
-"""Rechenlogik der Vertrauenskasse: Soll/Ist-Kassenvergleich und Leergut-Abgleich
-zwischen zwei Zaehlungen.
+"""Rechenlogik der Vertrauenskasse: Soll/Ist-Kassenvergleich zwischen zwei
+Zaehlungen.
 """
 
 from dataclasses import dataclass, field
@@ -11,11 +11,9 @@ from .models import (
     BelegPosition,
     Freigetraenk,
     Getraenk,
-    Pfandkategorie,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
-    ZaehlungLeergut,
 )
 
 
@@ -36,29 +34,16 @@ class GetraenkAuswertung:
 
 
 @dataclass
-class LeergutAuswertung:
-    pfandkategorie: Pfandkategorie
-    leergut_start: int
-    leergut_ende: int
-    verkauft_gesamt: int
-    rueckgabe_an_getraenkemarkt: int
-    erwartetes_leergut: int
-    leergut_differenz: int
-
-
-@dataclass
 class Auswertung:
     start: Zaehlung
     ende: Zaehlung
     positionen: list = field(default_factory=list)
-    leergut_positionen: list = field(default_factory=list)
     soll_kasse: Decimal = Decimal("0")
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
     ist_kasse: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
     vorlaeufig: bool = False
-    leergut_differenz_gesamt: int = 0
 
 
 def _zaehlungen_im_zeitraum(start: Zaehlung, ende: Zaehlung):
@@ -71,13 +56,11 @@ def _zaehlungen_im_zeitraum(start: Zaehlung, ende: Zaehlung):
 
 
 def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
-    """Berechnet Soll/Ist-Kasse und Leergut-Differenz fuer den Zeitraum zwischen
-    zwei Zaehlungen (start -> ende), je Getraenk/Pfandkategorie und als Gesamtsumme.
+    """Berechnet Soll/Ist-Kasse fuer den Zeitraum zwischen zwei Zaehlungen
+    (start -> ende), je Getraenk und als Gesamtsumme.
 
     Beruecksichtigt dabei auch Zaehlungen, die zeitlich zwischen start und ende
-    liegen (z.B. bei einer Monatsauswertung ueber mehrere Zaehlungen hinweg):
-    zwischenzeitliche Leergut-Rueckgaben fliessen mit ein, statt nur die Werte
-    der End-Zaehlung zu betrachten.
+    liegen (z.B. bei einer Monatsauswertung ueber mehrere Zaehlungen hinweg).
     """
     if start.id == ende.id:
         raise AuswertungError("Start- und End-Zaehlung duerfen nicht identisch sein.")
@@ -94,8 +77,8 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
             "Die Start-Zaehlung muss vor (oder am selben Tag wie) der End-Zaehlung liegen."
         )
     zwischentermine = zeitraum[start_index + 1 : ende_index]
-    # Zaehlungen, deren Rueckgaben/PayPal-Zahlungen in diesen Zeitraum faellen
-    # (alles nach start, bis inkl. ende).
+    # Zaehlungen, deren PayPal-Zahlungen in diesen Zeitraum faellen (alles nach
+    # start, bis inkl. ende).
     perioden_zaehlungen = zwischentermine + [ende]
     perioden_zaehlung_ids = [z.id for z in perioden_zaehlungen]
 
@@ -106,12 +89,7 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
         b.getraenk_id: b for b in ZaehlungBestand.objects.filter(zaehlung=ende)
     }
     getraenk_ids = set(start_bestaende) | set(ende_bestaende)
-    getraenke = {
-        g.id: g
-        for g in Getraenk.objects.filter(id__in=getraenk_ids).select_related(
-            "pfandkategorie"
-        )
-    }
+    getraenke = {g.id: g for g in Getraenk.objects.filter(id__in=getraenk_ids)}
 
     nachschub_je_getraenk = dict(
         BelegPosition.objects.filter(
@@ -135,7 +113,6 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
     )
 
     auswertung = Auswertung(start=start, ende=ende)
-    verkauft_je_kategorie: dict = {}
 
     for getraenk_id in sorted(getraenke, key=lambda gid: getraenke[gid].name.lower()):
         getraenk = getraenke[getraenk_id]
@@ -163,62 +140,6 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
             )
         )
         auswertung.soll_kasse += soll_kasse_i
-
-        if getraenk.pfandkategorie_id:
-            verkauft_je_kategorie[getraenk.pfandkategorie_id] = (
-                verkauft_je_kategorie.get(getraenk.pfandkategorie_id, 0) + verkauft
-            )
-
-    # Leergut je Pfandkategorie (eine Zahl fuer alle Artikel dieser Kategorie).
-    start_leergut = {
-        l.pfandkategorie_id: l
-        for l in ZaehlungLeergut.objects.filter(zaehlung=start)
-    }
-    ende_leergut = {
-        l.pfandkategorie_id: l
-        for l in ZaehlungLeergut.objects.filter(zaehlung=ende)
-    }
-    kategorie_ids = (
-        set(start_leergut) | set(ende_leergut) | set(verkauft_je_kategorie)
-    )
-    kategorien = {
-        k.id: k for k in Pfandkategorie.objects.filter(id__in=kategorie_ids)
-    }
-    rueckgabe_je_kategorie = dict(
-        ZaehlungLeergut.objects.filter(
-            zaehlung_id__in=perioden_zaehlung_ids, pfandkategorie_id__in=kategorie_ids
-        )
-        .values("pfandkategorie_id")
-        .annotate(summe=Sum("rueckgabe_an_getraenkemarkt"))
-        .values_list("pfandkategorie_id", "summe")
-    )
-
-    for kategorie_id in sorted(
-        kategorien, key=lambda kid: kategorien[kid].name.lower()
-    ):
-        kategorie = kategorien[kategorie_id]
-        start_l = start_leergut.get(kategorie_id)
-        ende_l = ende_leergut.get(kategorie_id)
-        leergut_start = start_l.leergut_gezaehlt if start_l else 0
-        leergut_ende = ende_l.leergut_gezaehlt if ende_l else 0
-        verkauft_gesamt = verkauft_je_kategorie.get(kategorie_id, 0)
-        rueckgabe = rueckgabe_je_kategorie.get(kategorie_id, 0)
-
-        erwartetes_leergut = leergut_start + verkauft_gesamt - rueckgabe
-        leergut_differenz = leergut_ende - erwartetes_leergut
-
-        auswertung.leergut_positionen.append(
-            LeergutAuswertung(
-                pfandkategorie=kategorie,
-                leergut_start=leergut_start,
-                leergut_ende=leergut_ende,
-                verkauft_gesamt=verkauft_gesamt,
-                rueckgabe_an_getraenkemarkt=rueckgabe,
-                erwartetes_leergut=erwartetes_leergut,
-                leergut_differenz=leergut_differenz,
-            )
-        )
-        auswertung.leergut_differenz_gesamt += leergut_differenz
 
     # Bar-Anteil: einfache Differenz des gezaehlten Bargelds zwischen den beiden
     # Zaehlungen (kein Geldabfluss ausser privaten Einlagen, siehe Beleg-Modell).

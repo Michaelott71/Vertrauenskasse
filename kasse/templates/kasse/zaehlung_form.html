@@ -16,63 +16,21 @@
         {{ meta_form.as_p }}
       </div>
 
-      {% for kategorie, artikel_liste in kategorien %}
-        <div class="card pfand-card">
-          <h2>{{ kategorie.name }} <span class="muted">({{ kategorie.pfandbetrag }} € Pfand)</span></h2>
-          <p class="muted">Vollbestand je Artikel zählen:</p>
-          <div class="kachel-grid">
-            {% for getraenk in artikel_liste %}
-              <div class="kachel" data-min="0">
-                <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
-                <div class="kachel-tap" role="button" tabindex="0">
-                  <div class="kachel-label">{{ getraenk.name }}</div>
-                  <div class="kachel-value">0</div>
-                </div>
-                <input type="hidden" name="bestand_{{ getraenk.id }}" class="kachel-input" value="0">
-              </div>
-            {% endfor %}
-          </div>
-
-          <p class="muted">Leergut dieser Kategorie (eine Zahl für alle Artikel):</p>
-          <div class="kachel-grid">
-            <div class="kachel kachel-leergut" data-min="0">
-              <button type="button" class="kachel-minus" aria-label="Leergut {{ kategorie.name }} verringern">−</button>
+      <div class="card">
+        <p class="muted">Vollbestand je Artikel zählen:</p>
+        <div class="kachel-grid">
+          {% for getraenk in artikel %}
+            <div class="kachel" data-min="0">
+              <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
               <div class="kachel-tap" role="button" tabindex="0">
-                <div class="kachel-label">Leergut gezählt</div>
+                <div class="kachel-label">{{ getraenk.name }}</div>
                 <div class="kachel-value">0</div>
               </div>
-              <input type="hidden" name="leergut_{{ kategorie.id }}" class="kachel-input" value="0">
+              <input type="hidden" name="bestand_{{ getraenk.id }}" class="kachel-input" value="0">
             </div>
-            <div class="kachel kachel-rueckgabe" data-min="0">
-              <button type="button" class="kachel-minus" aria-label="Rückgabe {{ kategorie.name }} verringern">−</button>
-              <div class="kachel-tap" role="button" tabindex="0">
-                <div class="kachel-label">Rückgabe an Getränkemarkt</div>
-                <div class="kachel-value">0</div>
-              </div>
-              <input type="hidden" name="rueckgabe_{{ kategorie.id }}" class="kachel-input" value="0">
-            </div>
-          </div>
+          {% endfor %}
         </div>
-      {% endfor %}
-
-      {% if snacks %}
-        <div class="card">
-          <h2>Snacks <span class="muted">(ohne Pfand)</span></h2>
-          <p class="muted">Vollbestand je Artikel zählen:</p>
-          <div class="kachel-grid">
-            {% for getraenk in snacks %}
-              <div class="kachel" data-min="0">
-                <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
-                <div class="kachel-tap" role="button" tabindex="0">
-                  <div class="kachel-label">{{ getraenk.name }}</div>
-                  <div class="kachel-value">0</div>
-                </div>
-                <input type="hidden" name="bestand_{{ getraenk.id }}" class="kachel-input" value="0">
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      {% endif %}
+      </div>
 
       <div class="save-bar">
         <button type="submit" class="btn-save">Zählung speichern</button>

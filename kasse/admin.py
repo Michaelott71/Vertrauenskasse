@@ -6,24 +6,17 @@ from .models import (
     Freigetraenk,
     Getraenk,
     MonatsExport,
-    Pfandkategorie,
     PaypalStichwort,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
-    ZaehlungLeergut,
 )
-
-
-@admin.register(Pfandkategorie)
-class PfandkategorieAdmin(admin.ModelAdmin):
-    list_display = ("name", "pfandbetrag")
 
 
 @admin.register(Getraenk)
 class GetraenkAdmin(admin.ModelAdmin):
-    list_display = ("name", "pfandkategorie", "warenpreis", "verkaufspreis", "aktiv")
-    list_filter = ("aktiv", "pfandkategorie")
+    list_display = ("name", "warenpreis", "verkaufspreis", "aktiv")
+    list_filter = ("aktiv",)
     search_fields = ("name",)
 
 
@@ -32,16 +25,11 @@ class ZaehlungBestandInline(admin.TabularInline):
     extra = 1
 
 
-class ZaehlungLeergutInline(admin.TabularInline):
-    model = ZaehlungLeergut
-    extra = 1
-
-
 @admin.register(Zaehlung)
 class ZaehlungAdmin(admin.ModelAdmin):
     list_display = ("belegnummer", "datum", "notiz", "bargeld_gezaehlt")
     readonly_fields = ("belegnummer",)
-    inlines = [ZaehlungBestandInline, ZaehlungLeergutInline]
+    inlines = [ZaehlungBestandInline]
 
 
 class BelegPositionInline(admin.TabularInline):

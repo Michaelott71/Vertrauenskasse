@@ -27,35 +27,12 @@ def pruefe_monat_nicht_exportiert(datum, was="Diese Korrektur"):
         )
 
 
-class Pfandkategorie(models.Model):
-    """Pfandklasse, z.B. "25 Cent Pfand". Mehrere Getraenke mit unterschiedlichem
-    Verkaufspreis koennen derselben Pfandkategorie angehoeren, da eine leere
-    Flasche/Kiste dieser Kategorie beim Leergut-Zaehlen immer gleich aussieht."""
-
-    name = models.CharField(max_length=100, unique=True)
-    pfandbetrag = models.DecimalField(max_digits=6, decimal_places=2)
-
-    class Meta:
-        ordering = ["name"]
-        verbose_name = "Pfandkategorie"
-        verbose_name_plural = "Pfandkategorien"
-
-    def __str__(self):
-        return f"{self.name} ({self.pfandbetrag} EUR)"
-
-
 class Getraenk(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    pfandkategorie = models.ForeignKey(
-        Pfandkategorie,
-        on_delete=models.PROTECT,
-        related_name="getraenke",
-        null=True,
-        blank=True,
-        help_text="Leer lassen bei Snacks/Artikeln ohne Pfand.",
-    )
     warenpreis = models.DecimalField(
-        max_digits=8, decimal_places=2, help_text="Einkaufspreis pro Einheit"
+        max_digits=8,
+        decimal_places=2,
+        help_text="Einkaufspreis pro Einheit (reiner Warenpreis ohne Pfand)",
     )
     verkaufspreis = models.DecimalField(max_digits=8, decimal_places=2)
     aktiv = models.BooleanField(default=True)
@@ -146,44 +123,6 @@ class ZaehlungBestand(models.Model):
             )
 
 
-class ZaehlungLeergut(models.Model):
-    """Gezaehltes Leergut je Pfandkategorie zu einer Zaehlung (eine Zahl fuer alle
-    Artikel dieser Kategorie, da eine leere Flasche/Kiste immer gleich aussieht)."""
-
-    zaehlung = models.ForeignKey(
-        Zaehlung, on_delete=models.CASCADE, related_name="leergutbestaende"
-    )
-    pfandkategorie = models.ForeignKey(
-        Pfandkategorie, on_delete=models.PROTECT, related_name="leergutbestaende"
-    )
-    leergut_gezaehlt = models.PositiveIntegerField()
-    rueckgabe_an_getraenkemarkt = models.PositiveIntegerField(
-        default=0,
-        help_text="Anzahl Leergut dieser Kategorie seit der letzten Zaehlung an "
-        "den Getraenkemarkt zurueckgegeben",
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["zaehlung", "pfandkategorie"],
-                name="unique_zaehlung_pfandkategorie",
-            )
-        ]
-        ordering = ["zaehlung", "pfandkategorie"]
-        verbose_name = "Zählungsleergut"
-        verbose_name_plural = "Zählungsleergut"
-
-    def __str__(self):
-        return f"{self.pfandkategorie} @ {self.zaehlung}"
-
-    def clean(self):
-        if self.zaehlung_id:
-            pruefe_monat_nicht_exportiert(
-                self.zaehlung.datum, "Eine Leergut-Korrektur"
-            )
-
-
 class Beleg(models.Model):
     datum = models.DateField()
     dateipfad = models.FileField(upload_to="belege/%Y/%m/", blank=True)
@@ -207,7 +146,12 @@ class BelegPosition(models.Model):
         Getraenk, on_delete=models.PROTECT, related_name="belegpositionen"
     )
     anzahl = models.PositiveIntegerField()
-    einzelpreis = models.DecimalField(max_digits=8, decimal_places=2)
+    einzelpreis = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Nur der Warenpreis laut Quittung, ohne Pfand-Anteil (Pfand "
+        "steht auf der Quittung meist als eigene Zeile und wird nicht erfasst).",
+    )
 
     class Meta:
         verbose_name = "Belegposition"

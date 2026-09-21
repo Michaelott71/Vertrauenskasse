@@ -6,9 +6,9 @@ from .models import PaypalZahlung, Zaehlung
 
 
 class ZaehlungMetaForm(forms.ModelForm):
-    """Die "Kopf"-Felder einer Zaehlung. Die eigentlichen Bestands-/Leergutwerte
-    kommen aus den Kacheln und werden im View direkt aus dem POST gelesen,
-    da ihre Anzahl von den aktiven Getraenken/Pfandkategorien abhaengt."""
+    """Die "Kopf"-Felder einer Zaehlung. Die eigentlichen Bestandswerte kommen
+    aus den Kacheln und werden im View direkt aus dem POST gelesen, da ihre
+    Anzahl von den aktiven Getraenken abhaengt."""
 
     class Meta:
         model = Zaehlung
