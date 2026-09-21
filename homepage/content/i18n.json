@@ -56,8 +56,7 @@
     },
     "training": {
       "title": "Training",
-      "text": "Verbessert Euer Spiel mit datenbasiertem Feedback: verschiedene Trainingsprogramme und individuelle Vorschläge von Trackman Tracy, unserer KI-gestützten Trainingsassistenz. Trainingszeiten bucht Ihr flexibel über unser Buchungsportal.",
-      "note": "Hinweis: Bitte bestätigen, ob zusätzlich persönliches Coaching durch Trainer angeboten wird – aktuell noch offen."
+      "text": "Verbessert Euer Spiel mit persönlichem Coaching durch unsere Trainer, kombiniert mit datenbasiertem Feedback: verschiedene Trainingsprogramme und individuelle Vorschläge von Trackman Tracy, unserer KI-gestützten Trainingsassistenz. Trainingszeiten bucht Ihr flexibel über unser Buchungsportal."
     },
     "preise": {
       "title": "Preise",
@@ -79,7 +78,8 @@
       ],
       "event_title": "Eigenes Event in der Box",
       "event_text": "Preis auf Anfrage – meldet Euch telefonisch oder per E-Mail.",
-      "cta": "Jetzt Zeit buchen"
+      "cta": "Jetzt Zeit buchen",
+      "phone_alt_label": "Telefonische Buchung auch über:"
     },
     "gallery": {
       "title": "Einblicke in die Box"
@@ -211,8 +211,7 @@
     },
     "training": {
       "title": "Training",
-      "text": "Improve your game with data-driven feedback: various training programs and individual suggestions from Trackman Tracy, our AI-powered training assistant. Book training time flexibly through our booking portal.",
-      "note": "Note: please confirm whether personal coaching by trainers is also offered – currently still open."
+      "text": "Improve your game with personal coaching from our trainers, combined with data-driven feedback: various training programs and individual suggestions from Trackman Tracy, our AI-powered training assistant. Book training time flexibly through our booking portal."
     },
     "preise": {
       "title": "Prices",
@@ -234,7 +233,8 @@
       ],
       "event_title": "Private event in the bay",
       "event_text": "Price on request – get in touch by phone or email.",
-      "cta": "Book a time now"
+      "cta": "Book a time now",
+      "phone_alt_label": "You can also book by phone at:"
     },
     "gallery": {
       "title": "A look inside"

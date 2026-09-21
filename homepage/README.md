@@ -40,32 +40,39 @@ kein Build noetig).
 ## Vor dem Live-Schalten noch zu erledigen
 
 1. **Logo**: `assets/img/logo/logo.svg` ist aktuell nur ein Platzhalter.
-   Durch die finale Logo-Datei ersetzen (gleicher Dateiname, oder Pfad in
-   `index.html`/`impressum.html`/`datenschutz.html` anpassen).
-2. **Schrift Qaranta Bold**: Lizenzpflichtige Datei von dafont.com, liegt
-   hier nicht bei. `Qaranta-Bold.woff2` (und optional `.woff`) in
-   `assets/fonts/` ablegen – die Seite nutzt sie dann automatisch fuer
-   Ueberschriften/Logo-Schriftzug. Bis dahin greift eine fette
-   Systemschrift als Ersatz.
-3. **Fotos**: Echte Bay-Fotos in `assets/img/bay/` ablegen, Trackman-
-   Grafiken in `assets/img/trackman/`, Partner-Fotos (Hofgut Georgenthal)
-   optional in `assets/img/partner/`. Dateinamen jeweils in den passenden
-   `content/*.json` eintragen (siehe oben).
+   Die echte Logo-Datei wurde in einem anderen Claude-Chat hochgeladen, ist
+   aber in dieser Code-Session (arbeitet direkt auf dem GitHub-Repo) nicht
+   verfuegbar – Claude-Chat-Uploads und Claude-Code-Sessions teilen keinen
+   Dateizugriff. Bitte die Logo-Datei hier im Code-Chat direkt anhaengen,
+   dann wird sie eingebaut (Pfad `assets/img/logo/logo.svg` bzw. `.png`).
+2. **Schrift Qaranta Bold**: Kostet beim Schriftgestalter 5 $ Lizenzgebuehr
+   fuer die kommerzielle Nutzung (dafont.com bietet nur die private Nutzung
+   kostenlos an). Bis die Lizenz gekauft ist, verwendet die Seite
+   **Poppins Bold** als Uebergangslösung – eine aehnlich kraeftige,
+   geometrische Schrift, kostenlos auch fuer kommerzielle Nutzung (SIL Open
+   Font License, selbst gehostet in `assets/fonts/BrandDisplay-Bold.woff2`,
+   Lizenztext in `assets/fonts/OFL-Poppins.txt`). Sobald die Qaranta-Lizenz
+   gekauft ist: `Qaranta-Bold.woff2` in `assets/fonts/` ablegen – sie wird
+   dann automatisch statt Poppins verwendet, ohne dass sonst etwas
+   geaendert werden muss.
+3. **Fotos**: Gleiches Problem wie beim Logo – die Fotos aus dem anderen
+   Claude-Chat sind hier nicht verfuegbar. Bitte hier im Code-Chat
+   anhaengen; sie werden dann in `assets/img/bay/`, `assets/img/trackman/`
+   bzw. `assets/img/partner/` abgelegt und in den passenden
+   `content/*.json` eingetragen (siehe oben).
 4. **`content/config.json`**: `booking_url` durch die echte Adresse des
    Buchungsportals ersetzen, `google_ads_conversion_id` /
    `google_ads_label_booking` / `google_ads_label_call` /
    `google_analytics_id` durch echte IDs ersetzen, sobald Google
-   Ads/Analytics-Zugang geprueft ist. Zweite Telefonnummer
-   (`phone_guthaben_display`) mit Michael Ott gegenchecken (siehe
-   `_note`-Feld in der Datei).
+   Ads/Analytics-Zugang geprueft ist. `whatsapp_number` gegenchecken (siehe
+   `whatsapp_note`-Feld in der Datei) – die zweite Telefonnummer fuer
+   telefonische Buchung ist bereits bestaetigt und in der Preise-Sektion
+   sichtbar.
 5. **Datenschutzerklaerung** (`datenschutz.html`): als Entwurf markiert –
    bitte anwaltlich pruefen/freigeben lassen, siehe Hinweisbox oben auf der
    Seite.
 6. **Impressum** (`impressum.html`): Umsatzsteuer-ID/Handelsregister
    ergaenzen, falls vorhanden.
-7. **Training-Abschnitt**: Aktuell nur Trackman-basiertes Training
-   beschrieben (`content/i18n.json` → `training`). Bitte bestaetigen, ob
-   zusaetzlich persoenliches Coaching durch Trainer angeboten wird.
 
 ## Tracking / Cookie-Consent
 
@@ -93,7 +100,7 @@ homepage/
   assets/
     css/style.css     Design-System (Farben, Typo, Layout)
     js/main.js         i18n, Cookie-Consent, Slider, dynamisches Rendering
-    fonts/              Qaranta Bold hier ablegen
+    fonts/              Qaranta Bold hier ablegen (Poppins Bold als Uebergangslösung bereits vorhanden)
     img/
       logo/             Logo (Platzhalter bis echte Datei vorliegt)
       bay/               Fotos der Anlage

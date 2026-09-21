@@ -4,9 +4,8 @@
   "phone_display": "0151 26637033",
   "phone_href": "+4915126637033",
 
-  "phone_guthaben_display": "0151 42597642",
-  "phone_guthaben_href": "+4915142597642",
-  "phone_guthaben_note": "Abweichende Nummer laut Ausgangstext fuer Guthaben-Buchungen - bitte mit Michael Ott gegenchecken, ob diese zusaetzlich zur Hauptnummer gilt oder ein Tippfehler ist.",
+  "phone_alt_display": "0151 42597642",
+  "phone_alt_href": "+4915142597642",
 
   "email": "info@majorsgolfbox.de",
 
