@@ -243,12 +243,13 @@ section { padding: var(--space-5) 0; }
    ========================================================================== */
 .hero {
   background:
-    radial-gradient(circle at 15% 20%, rgba(219, 100, 33, 0.35), transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(219, 100, 33, 0.2), transparent 50%),
-    var(--color-black);
+    radial-gradient(circle at 20% 15%, rgba(219, 100, 33, 0.55), transparent 60%),
+    radial-gradient(circle at 85% 80%, rgba(219, 100, 33, 0.4), transparent 65%),
+    linear-gradient(135deg, #2b2b29, var(--color-black));
   color: #fff;
   padding: var(--space-5) 0 var(--space-5);
 }
+.hero h1 { color: #fff; }
 .hero-inner { display: grid; gap: var(--space-4); align-items: center; }
 .hero p.hero-subline { color: #d8d8d6; max-width: 46ch; font-size: 1.05rem; }
 .hero-note { color: #b9b9b7; font-size: 0.9rem; margin-top: var(--space-2); }
