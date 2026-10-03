@@ -298,9 +298,11 @@
     phone.textContent = c.phone_display;
 
     var altPhone = document.getElementById("priceAltPhone");
-    if (altPhone && c.phone_alt_display) {
+    var altPhoneWrap = document.getElementById("priceAltPhoneWrap");
+    if (altPhone && altPhoneWrap && c.phone_alt_display) {
       altPhone.href = "tel:" + c.phone_alt_href;
       altPhone.textContent = c.phone_alt_display;
+      altPhoneWrap.hidden = false;
     }
 
     var wa = document.getElementById("contactWhatsapp");
