@@ -22,11 +22,12 @@
     "zip_city": "65232 Taunusstein-Neuhof"
   },
 
+  "google_ads_customer_id": "645-560-7990",
   "google_ads_conversion_id": "AW-XXXXXXXXX",
   "google_ads_label_booking": "XXXXXXXXXXXX",
   "google_ads_label_call": "XXXXXXXXXXXX",
   "google_analytics_id": "G-XXXXXXXXXX",
-  "tracking_note": "Platzhalter-IDs - bitte durch echte Google Ads/GA4 IDs ersetzen, sobald Zugangsdaten geprueft sind. Tags laden erst nach Cookie-Einwilligung (siehe assets/js/main.js).",
+  "tracking_note": "google_ads_customer_id ist die Kontonummer (645-560-7990) - die wird im Code nicht gebraucht, nur zur Referenz hier hinterlegt. Fuers Conversion-Tracking noetig: google_ads_conversion_id (Format 'AW-xxxxxxxxx') und die beiden Conversion-Label (google_ads_label_booking/_call) - zu finden in Google Ads unter Tools > Conversions > [Conversion-Aktion] > Tag einrichten > 'Tag selbst installieren'. Noch Platzhalter, Tags laden erst nach Cookie-Einwilligung (siehe assets/js/main.js).",
 
   "google_maps_url": "https://maps.google.com/?q=Auf+dem+kleinen+Feld+15,+65232+Taunusstein-Neuhof"
 }
