@@ -4,17 +4,12 @@
   "phone_display": "0151 26637033",
   "phone_href": "+4915126637033",
 
-  "phone_alt_display": "",
-  "phone_alt_href": "",
-  "phone_alt_note": "War falsch (0151 42597642) - aktuell leer/ausgeblendet, bis die richtige Nummer vorliegt. Eintragen, um die Zeile in der Preise-Sektion wieder einzublenden.",
-
   "email": "info@majorsgolfbox.de",
 
   "whatsapp_number": "4915126637033",
   "whatsapp_note": "Nummer fuer WhatsApp Business - bitte bestaetigen, ob dieselbe wie phone_href verwendet werden soll.",
 
-  "booking_url": "https://booking.majorsgolfbox.de/",
-  "booking_url_note": "Platzhalter - bitte durch die echte URL des separaten Buchungsportals ersetzen.",
+  "booking_url": "https://yourgolfbooking.com/venues/majors-golfbox/booking/bays",
 
   "address": {
     "name": "Majors Golfbox",

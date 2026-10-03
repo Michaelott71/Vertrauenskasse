@@ -78,8 +78,7 @@
       ],
       "event_title": "Eigenes Event in der Box",
       "event_text": "Preis auf Anfrage – meldet Euch telefonisch oder per E-Mail.",
-      "cta": "Jetzt Zeit buchen",
-      "phone_alt_label": "Telefonische Buchung auch über:"
+      "cta": "Jetzt Zeit buchen"
     },
     "gallery": {
       "title": "Einblicke in die Box"
@@ -145,8 +144,7 @@
     "footer": {
       "rights": "Alle Rechte vorbehalten.",
       "impressum": "Impressum",
-      "datenschutz": "Datenschutz",
-      "partner_note": "In Kooperation mit Hofgut Georgenthal"
+      "datenschutz": "Datenschutz"
     },
     "cookie": {
       "text": "Wir verwenden Cookies für Google Ads und Analyse, um zu verstehen, wie unsere Seite genutzt wird. Nicht notwendige Cookies werden erst nach Eurer Zustimmung geladen.",
@@ -233,8 +231,7 @@
       ],
       "event_title": "Private event in the bay",
       "event_text": "Price on request – get in touch by phone or email.",
-      "cta": "Book a time now",
-      "phone_alt_label": "You can also book by phone at:"
+      "cta": "Book a time now"
     },
     "gallery": {
       "title": "A look inside"
@@ -300,8 +297,7 @@
     "footer": {
       "rights": "All rights reserved.",
       "impressum": "Legal notice",
-      "datenschutz": "Privacy policy",
-      "partner_note": "In cooperation with Hofgut Georgenthal"
+      "datenschutz": "Privacy policy"
     },
     "cookie": {
       "text": "We use cookies for Google Ads and analytics to understand how our site is used. Non-essential cookies only load after you consent.",

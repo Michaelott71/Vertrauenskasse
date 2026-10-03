@@ -54,24 +54,29 @@ kein Build noetig).
    dann automatisch statt Poppins verwendet, ohne dass sonst etwas
    geaendert werden muss.
 3. ~~**Bay-Fotos**~~ Erledigt – 4 echte Fotos in `assets/img/bay/`
-   eingebunden (`content/gallery.json`), darunter zwei mit dem
-   Hofgut-Georgenthal-Partnerbanner im Bild. **Trackman-„Know Your
+   eingebunden (`content/gallery.json`). **Trackman-„Know Your
    Numbers"-Grafikset (12 Bilder) fehlt noch** – bitte ebenfalls hier
    anhaengen, dann werden sie in `assets/img/trackman/` abgelegt und in
    `content/trackman.json` eingetragen.
-4. **`content/config.json`**: `booking_url` durch die echte Adresse des
-   Buchungsportals ersetzen, `google_ads_conversion_id` /
+4. ~~**Buchungsportal-URL**~~ Erledigt – echte Adresse in
+   `content/config.json` hinterlegt. ~~**Telefonnummer**~~ Erledigt – das
+   separate "Telefonische Buchung auch über"-Feld in der Preise-Sektion
+   wurde entfernt, da die ursprünglich genannte zweite Nummer falsch war
+   und die bestätigte korrekte Nummer ohnehin mit der Hauptnummer
+   identisch ist. Noch offen: `google_ads_conversion_id` /
    `google_ads_label_booking` / `google_ads_label_call` /
    `google_analytics_id` durch echte IDs ersetzen, sobald Google
    Ads/Analytics-Zugang geprueft ist. `whatsapp_number` gegenchecken (siehe
-   `whatsapp_note`-Feld in der Datei) – die zweite Telefonnummer fuer
-   telefonische Buchung ist bereits bestaetigt und in der Preise-Sektion
-   sichtbar.
-5. **Datenschutzerklaerung** (`datenschutz.html`): als Entwurf markiert –
-   bitte anwaltlich pruefen/freigeben lassen, siehe Hinweisbox oben auf der
-   Seite.
+   `whatsapp_note`-Feld in der Datei).
+5. ~~**Datenschutzerklaerung**~~ Freigegeben – der Entwurfs-Hinweis auf
+   `datenschutz.html` wurde entfernt.
 6. **Impressum** (`impressum.html`): Umsatzsteuer-ID/Handelsregister
    ergaenzen, falls vorhanden.
+7. ~~**Footer-Hinweis "In Kooperation mit Hofgut Georgenthal"**~~ Entfernt
+   (Footer sowie Alt-Texte in `content/gallery.json`) – Hofgut Georgenthal
+   ist der eigene Club des Betreibers, keine externe Kooperation; das
+   wird bereits in der "550+ Plätze"-Karte auf der Startseite korrekt
+   dargestellt.
 
 ## Tracking / Cookie-Consent
 
