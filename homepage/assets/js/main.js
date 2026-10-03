@@ -201,19 +201,12 @@
       return img;
     });
 
-    var caption = null;
-    if (opts.captionEl) {
-      caption = opts.captionEl;
-    }
-
     var current = 0;
     function show(idx) {
       imgEls[current].classList.remove("is-active");
       current = (idx + imgEls.length) % imgEls.length;
       imgEls[current].classList.add("is-active");
-      if (caption) caption.textContent = opts.captionFor ? opts.captionFor(images[current]) : "";
     }
-    if (caption) caption.textContent = opts.captionFor ? opts.captionFor(images[0]) : "";
 
     var timer = null;
     function startAuto() {
@@ -263,12 +256,9 @@
   function renderTrackman() {
     if (!state.trackman) return;
     if (trackmanSliderCtl) trackmanSliderCtl.destroy();
-    var captionText = document.getElementById("trackmanCaptionText");
     trackmanSliderCtl = buildSlider("trackmanSlider", state.trackman.images, {
       basePath: "assets/img/trackman/",
       altFor: function (item) { return "Trackman – " + item.metric; },
-      captionEl: captionText,
-      captionFor: function (item) { return item.metric; },
       interval: 4000
     });
     var prev = document.getElementById("trackmanPrev");

@@ -29,7 +29,7 @@ Alle Inhalte, die sich haeufiger aendern, liegen in `content/*.json`
 |---|---|
 | `content/reviews.json` | Google-Sternebewertung + Anzahl. Einfach `rating`/`count` anpassen. |
 | `content/gallery.json` | Fotos der Anlage. Bild in `assets/img/bay/` ablegen, Dateinamen hier eintragen. |
-| `content/trackman.json` | Die 12 Trackman-„Know Your Numbers"-Grafiken. Bild in `assets/img/trackman/` ablegen, Dateinamen + Kennzahl eintragen. |
+| `content/trackman.json` | Die Trackman-„Know Your Numbers"-Grafiken (11 Kennzahlen insgesamt). Bild in `assets/img/trackman/` ablegen, Dateinamen + Kennzahl eintragen. |
 | `content/tournaments.json` | Aktuelle Turniere. Leeres `active`-Array = Abschnitt „Turniere" wird auf der Seite automatisch ausgeblendet. |
 | `content/config.json` | Telefonnummern, E-Mail, WhatsApp, Buchungsportal-URL, Google-Ads/Analytics-IDs, Adresse. |
 | `content/i18n.json` | Alle Texte der Seite, deutsch (`de`) und englisch (`en`). |
@@ -55,9 +55,12 @@ kein Build noetig).
    geaendert werden muss.
 3. ~~**Bay-Fotos**~~ Erledigt – 4 echte Fotos in `assets/img/bay/`
    eingebunden (`content/gallery.json`). **Trackman-„Know Your
-   Numbers"-Grafikset (12 Bilder) fehlt noch** – bitte ebenfalls hier
-   anhaengen, dann werden sie in `assets/img/trackman/` abgelegt und in
-   `content/trackman.json` eingetragen.
+   Numbers"-Grafikset: 5 von 11 vorhanden** (Face Angle, Launch Angle,
+   Smash Factor, Spin Rate, Total Distance, in `assets/img/trackman/`).
+   Es gibt insgesamt nur 11 Kennzahlen-Grafiken (nicht 12, wie urspruenglich
+   angenommen). Die restlichen 6 (Attack Angle, Ball Speed, Carry, Club
+   Path, Club Speed, Dynamic Loft) bitte ebenfalls hier anhaengen, sobald
+   vorhanden.
 4. ~~**Buchungsportal-URL**~~ Erledigt – echte Adresse in
    `content/config.json` hinterlegt. ~~**Telefonnummer**~~ Erledigt – das
    separate "Telefonische Buchung auch über"-Feld in der Preise-Sektion
