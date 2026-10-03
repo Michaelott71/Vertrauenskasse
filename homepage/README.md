@@ -54,11 +54,10 @@ kein Build noetig).
    dann automatisch statt Poppins verwendet, ohne dass sonst etwas
    geaendert werden muss.
 3. ~~**Bay-Fotos**~~ Erledigt – 4 echte Fotos in `assets/img/bay/`
-   eingebunden (`content/gallery.json`). **Trackman-„Know Your
-   Numbers"-Grafikset: 10 von 11 vorhanden** (alle außer Dynamic Loft, in
-   `assets/img/trackman/`). Es gibt insgesamt nur 11 Kennzahlen-Grafiken
-   (nicht 12, wie urspruenglich angenommen). Dynamic Loft bitte noch
-   anhaengen, sobald vorhanden.
+   eingebunden (`content/gallery.json`). ~~**Trackman-„Know Your
+   Numbers"-Grafikset**~~ Erledigt – alle 11 Kennzahlen-Grafiken
+   vorhanden in `assets/img/trackman/` (es gibt insgesamt nur 11, nicht
+   12, wie urspruenglich angenommen).
 4. ~~**Buchungsportal-URL**~~ Erledigt – echte Adresse in
    `content/config.json` hinterlegt. ~~**Telefonnummer**~~ Erledigt – das
    separate "Telefonische Buchung auch über"-Feld in der Preise-Sektion

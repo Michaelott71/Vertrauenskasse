@@ -1,11 +1,12 @@
 {
-  "_comment": "Trackman 'Know Your Numbers'-Grafikset - insgesamt 11 Kennzahlen. 10 von 11 vorhanden, es fehlt noch: Dynamic Loft. Datei in assets/img/trackman/ ablegen, Dateiname hier eintragen. Rotiert automatisch als Karussell im Abschnitt 'Das misst Trackman'.",
+  "_comment": "Trackman 'Know Your Numbers'-Grafikset - komplett, alle 11 Kennzahlen vorhanden. Datei in assets/img/trackman/ ablegen, Dateiname hier eintragen, falls sich das Set je aendert. Rotiert automatisch als Karussell im Abschnitt 'Das misst Trackman'.",
   "images": [
     { "file": "trackman-attack-angle.jpg", "metric": "Attack Angle" },
     { "file": "trackman-ball-speed.jpg", "metric": "Ball Speed" },
     { "file": "trackman-carry.jpg", "metric": "Carry" },
     { "file": "trackman-club-path.jpg", "metric": "Club Path" },
     { "file": "trackman-club-speed.jpg", "metric": "Club Speed" },
+    { "file": "trackman-dynamic-loft.jpg", "metric": "Dynamic Loft" },
     { "file": "trackman-face-angle.jpg", "metric": "Face Angle" },
     { "file": "trackman-launch-angle.jpg", "metric": "Launch Angle" },
     { "file": "trackman-smash-factor.jpg", "metric": "Smash Factor" },

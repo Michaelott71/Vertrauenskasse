@@ -294,6 +294,19 @@
     email.href = "mailto:" + c.email;
     email.textContent = c.email;
 
+    var nickEmail = document.getElementById("trainingEmail");
+    if (nickEmail && c.nick_email) {
+      nickEmail.href = "mailto:" + c.nick_email;
+      nickEmail.textContent = c.nick_email;
+    }
+    var nickPhone = document.getElementById("trainingPhone");
+    var nickPhoneWrap = document.getElementById("trainingPhoneWrap");
+    if (nickPhone && nickPhoneWrap && c.nick_phone_display) {
+      nickPhone.href = "tel:" + c.nick_phone_href;
+      nickPhone.textContent = c.nick_phone_display;
+      nickPhoneWrap.hidden = false;
+    }
+
     var addr = document.getElementById("contactAddress");
     addr.href = c.google_maps_url;
     addr.textContent = c.address.street + ", " + c.address.zip_city;
