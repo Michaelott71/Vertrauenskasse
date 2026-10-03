@@ -55,12 +55,10 @@ kein Build noetig).
    geaendert werden muss.
 3. ~~**Bay-Fotos**~~ Erledigt – 4 echte Fotos in `assets/img/bay/`
    eingebunden (`content/gallery.json`). **Trackman-„Know Your
-   Numbers"-Grafikset: 5 von 11 vorhanden** (Face Angle, Launch Angle,
-   Smash Factor, Spin Rate, Total Distance, in `assets/img/trackman/`).
-   Es gibt insgesamt nur 11 Kennzahlen-Grafiken (nicht 12, wie urspruenglich
-   angenommen). Die restlichen 6 (Attack Angle, Ball Speed, Carry, Club
-   Path, Club Speed, Dynamic Loft) bitte ebenfalls hier anhaengen, sobald
-   vorhanden.
+   Numbers"-Grafikset: 10 von 11 vorhanden** (alle außer Dynamic Loft, in
+   `assets/img/trackman/`). Es gibt insgesamt nur 11 Kennzahlen-Grafiken
+   (nicht 12, wie urspruenglich angenommen). Dynamic Loft bitte noch
+   anhaengen, sobald vorhanden.
 4. ~~**Buchungsportal-URL**~~ Erledigt – echte Adresse in
    `content/config.json` hinterlegt. ~~**Telefonnummer**~~ Erledigt – das
    separate "Telefonische Buchung auch über"-Feld in der Preise-Sektion
