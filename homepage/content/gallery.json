@@ -7,9 +7,9 @@
       "alt_en": "Guest teeing off inside Majors Golfbox with the Trackman readout on screen"
     },
     {
-      "file": "bay-02.jpg",
-      "alt_de": "Zwei Simulator-Boxen bei Majors Golfbox mit Trackman- und Golfplatz-Ansicht",
-      "alt_en": "Two simulator bays at Majors Golfbox showing the Trackman and course view"
+      "file": "bay-05.jpg",
+      "alt_de": "Gast beim Abschlag in der Golfbox",
+      "alt_en": "Guest teeing off in the golf bay"
     },
     {
       "file": "bay-03.jpg",
@@ -20,6 +20,11 @@
       "file": "bay-04.jpg",
       "alt_de": "Gaestin beim Training in der Golfbox",
       "alt_en": "Guest training in the golf bay"
+    },
+    {
+      "file": "bay-06.jpg",
+      "alt_de": "Gaestin beim Training in der Golfbox bei Hofgut Georgenthal",
+      "alt_en": "Guest training in the golf bay at Hofgut Georgenthal"
     }
   ]
 }
