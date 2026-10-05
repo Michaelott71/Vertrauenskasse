@@ -1,5 +1,5 @@
 {
-  "_comment": "Zentrale Kontakt- und Tracking-Werte. Aenderungen hier wirken sofort auf der ganzen Seite - kein Code-Zugriff noetig.",
+  "_comment": "Zentrale Kontakt- und Tracking-Werte. Änderungen hier wirken sofort auf der ganzen Seite - kein Code-Zugriff nötig.",
 
   "phone_display": "0151 26637033",
   "phone_href": "+4915126637033",
@@ -9,10 +9,10 @@
   "nick_email": "golf@nickott.de",
   "nick_phone_display": "",
   "nick_phone_href": "",
-  "nick_phone_note": "Telefonnummer von Nick Ott (PGA Professional) fuer Trainingsbuchungen - kommt noch, dann hier eintragen und die Zeile im Training-Bereich wird automatisch sichtbar.",
+  "nick_phone_note": "Telefonnummer von Nick Ott (PGA Professional) für Trainingsbuchungen - kommt noch, dann hier eintragen und die Zeile im Training-Bereich wird automatisch sichtbar.",
 
   "whatsapp_number": "4915126637033",
-  "whatsapp_note": "Nummer fuer WhatsApp Business - bitte bestaetigen, ob dieselbe wie phone_href verwendet werden soll.",
+  "whatsapp_note": "Nummer für WhatsApp Business - bitte bestätigen, ob dieselbe wie phone_href verwendet werden soll.",
 
   "booking_url": "https://yourgolfbooking.com/venues/majors-golfbox/booking/bays",
 
@@ -27,7 +27,7 @@
   "google_ads_label_booking": "XXXXXXXXXXXX",
   "google_ads_label_call": "XXXXXXXXXXXX",
   "google_analytics_id": "G-XXXXXXXXXX",
-  "tracking_note": "google_ads_customer_id ist die Kontonummer (645-560-7990) - die wird im Code nicht gebraucht, nur zur Referenz hier hinterlegt. Fuers Conversion-Tracking noetig: google_ads_conversion_id (Format 'AW-xxxxxxxxx') und die beiden Conversion-Label (google_ads_label_booking/_call) - zu finden in Google Ads unter Tools > Conversions > [Conversion-Aktion] > Tag einrichten > 'Tag selbst installieren'. Noch Platzhalter, Tags laden erst nach Cookie-Einwilligung (siehe assets/js/main.js).",
+  "tracking_note": "google_ads_customer_id ist die Kontonummer (645-560-7990) - die wird im Code nicht gebraucht, nur zur Referenz hier hinterlegt. Fürs Conversion-Tracking nötig: google_ads_conversion_id (Format 'AW-xxxxxxxxx') und die beiden Conversion-Label (google_ads_label_booking/_call) - zu finden in Google Ads unter Tools > Conversions > [Conversion-Aktion] > Tag einrichten > 'Tag selbst installieren'. Noch Platzhalter, Tags laden erst nach Cookie-Einwilligung (siehe assets/js/main.js).",
 
   "google_maps_url": "https://maps.google.com/?q=Auf+dem+kleinen+Feld+15,+65232+Taunusstein-Neuhof"
 }

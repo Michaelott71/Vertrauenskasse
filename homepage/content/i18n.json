@@ -1,5 +1,5 @@
 {
-  "_comment": "Alle Texte der Seite, deutsch und englisch. Sprachumschaltung im Header tauscht per JS zwischen 'de' und 'en'. Struktur nicht aendern, nur Werte.",
+  "_comment": "Alle Texte der Seite, deutsch und englisch. Sprachumschaltung im Header tauscht per JS zwischen 'de' und 'en'. Struktur nicht ändern, nur Werte.",
 
   "de": {
     "meta": {
@@ -36,7 +36,7 @@
           "text": "Auch aus der Region: z. B. Mainzer Golfclub, Hofgut Georgenthal (neu – unser eigener Club), Hanauer Golfclub, Golfclub Neuhof und Golfclub Bad Homburg. Plus einige der schönsten Plätze der Welt – alles spielbar in unserer Box."
         },
         {
-          "title": "Wetterunabhaengig, das ganze Jahr",
+          "title": "Wetterunabhängig, das ganze Jahr",
           "text": "Regen, Kälte oder Dunkelheit – bei uns spielt Ihr trotzdem. Sommer wie Winter."
         },
         {
@@ -51,7 +51,7 @@
     },
     "trackman": {
       "title": "Know Your Numbers",
-      "subtitle": "UNLEASH YOUR POTENTIAL – jeder Schlag liefert echte Daten statt Bauchgefuehl."
+      "subtitle": "UNLEASH YOUR POTENTIAL – jeder Schlag liefert echte Daten statt Bauchgefühl."
     },
     "training": {
       "title": "Training",

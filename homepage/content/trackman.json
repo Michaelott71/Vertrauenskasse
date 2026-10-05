@@ -1,5 +1,5 @@
 {
-  "_comment": "Trackman 'Know Your Numbers'-Grafikset - komplett, alle 11 Kennzahlen vorhanden. Datei in assets/img/trackman/ ablegen, Dateiname hier eintragen, falls sich das Set je aendert. Rotiert automatisch als Karussell im Abschnitt 'Das misst Trackman'.",
+  "_comment": "Trackman 'Know Your Numbers'-Grafikset - komplett, alle 11 Kennzahlen vorhanden. Datei in assets/img/trackman/ ablegen, Dateiname hier eintragen, falls sich das Set je ändert. Rotiert automatisch als Karussell im Abschnitt 'Know Your Numbers'.",
   "images": [
     { "file": "trackman-attack-angle.jpg", "metric": "Attack Angle" },
     { "file": "trackman-ball-speed.jpg", "metric": "Ball Speed" },

@@ -1,9 +1,9 @@
 {
-  "_comment": "Fotos der Anlage. Neues Foto hinzufuegen: Datei in assets/img/bay/ ablegen und hier einen Eintrag ergaenzen. Reihenfolge in der Liste = Reihenfolge im Slider.",
+  "_comment": "Fotos der Anlage. Neues Foto hinzufügen: Datei in assets/img/bay/ ablegen und hier einen Eintrag ergänzen. Reihenfolge in der Liste = Reihenfolge im Slider.",
   "images": [
     {
       "file": "bay-01.jpg",
-      "alt_de": "Gast schlaegt ab in der Majors Golfbox mit Trackman-Auswertung auf der Leinwand",
+      "alt_de": "Gast schlägt ab in der Majors Golfbox mit Trackman-Auswertung auf der Leinwand",
       "alt_en": "Guest teeing off inside Majors Golfbox with the Trackman readout on screen"
     },
     {
@@ -13,17 +13,17 @@
     },
     {
       "file": "bay-03.jpg",
-      "alt_de": "Gaestin beim Abschlag in der Golfbox",
+      "alt_de": "Gästin beim Abschlag in der Golfbox",
       "alt_en": "Guest teeing off in the golf bay"
     },
     {
       "file": "bay-04.jpg",
-      "alt_de": "Gaestin beim Training in der Golfbox",
+      "alt_de": "Gästin beim Training in der Golfbox",
       "alt_en": "Guest training in the golf bay"
     },
     {
       "file": "bay-06.jpg",
-      "alt_de": "Gaestin beim Training in der Golfbox bei Hofgut Georgenthal",
+      "alt_de": "Gästin beim Training in der Golfbox bei Hofgut Georgenthal",
       "alt_en": "Guest training in the golf bay at Hofgut Georgenthal"
     }
   ]
