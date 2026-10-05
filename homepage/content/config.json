@@ -7,9 +7,8 @@
   "email": "info@majorsgolfbox.de",
 
   "nick_email": "golf@nickott.de",
-  "nick_phone_display": "",
-  "nick_phone_href": "",
-  "nick_phone_note": "Telefonnummer von Nick Ott (PGA Professional) für Trainingsbuchungen - kommt noch, dann hier eintragen und die Zeile im Training-Bereich wird automatisch sichtbar.",
+  "nick_phone_display": "0151 56161321",
+  "nick_phone_href": "+4915156161321",
 
   "whatsapp_number": "4915126637033",
   "whatsapp_note": "Nummer für WhatsApp Business - bitte bestätigen, ob dieselbe wie phone_href verwendet werden soll.",
