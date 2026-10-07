@@ -61,17 +61,25 @@ die für die geforderte Rechen-/Zuordnungslogik technisch nötig sind (siehe
 | `Kassenbewegung` | Bargeldbewegung ohne Bezug zum Getränkeverkauf: Einlage, Entnahme oder fremder Bargeldeingang |
 | `PaypalZahlung` | PayPal-Zahlungen mit automatischer Zuordnung zur Vertrauenskasse |
 
-**Bewusst kein Lager-/Bestandstracking**: Es wird nicht gezählt, wie viele
-Flaschen noch im Kühlschrank stehen, und es gibt keine Unterscheidung
-zwischen Lager und Kühlschrank. Stattdessen trägt man bei jeder Zählung
-direkt ein, wie viel seit der letzten Zählung verbraucht/verkauft wurde
+**Bewusst kein Lager-/Kühlschrank-Bestand getrennt**: es gibt keine
+Unterscheidung nach Lagerort. Für die Kassenformel zählt bei jeder Zählung
+nur, wie viel seit der letzten Zählung verbraucht/verkauft wurde
 (`ZaehlungVerbrauch`) — das ist bei der überschaubaren Menge an Artikeln
-einfacher als ein Bestandsabgleich. `Beleg`/`BelegPosition` dokumentieren
-den Einkauf (Wareneinsatz, z.B. "10x Wasser"); der Einkauf ist immer eine
-private Einlage von Nick (es gibt bewusst kein "Bezahlt von"-Feld, da der
-Einkauf nie aus der Vertrauenskasse selbst bezahlt wird) und fließt deshalb
-in **keine** Kassenberechnung ein — weder in Soll-Kasse noch in die
-Kassendifferenz noch in den Bargeld-Vorschlag (siehe "Rechenlogik" unten).
+einfacher als ein Bestandsabgleich je Lagerort.
+
+Zusätzlich gibt es einen **einzigen, errechneten Gesamtbestand** je Getränk
+(Seite "Bestand", `/bestand/`): eingekaufte Menge (`BelegPosition`, z.B. "10x
+Wasser") minus verbrauchte Menge (`ZaehlungVerbrauch`), über die komplette
+Historie summiert — keine zusätzliche Dateneingabe nötig, da beide Mengen
+ohnehin schon beim Beleg-Erfassen bzw. bei der Zählung eingetragen werden.
+Rein informativ (z.B. um zu sehen, ob bald nachgekauft werden muss), fließt
+in keine Kassenberechnung ein.
+
+Der Einkauf selbst (`Beleg`/`BelegPosition`) ist immer eine private Einlage
+von Nick (es gibt bewusst kein "Bezahlt von"-Feld, da der Einkauf nie aus der
+Vertrauenskasse selbst bezahlt wird) und fließt deshalb in **keine**
+Kassenberechnung ein — weder in Soll-Kasse noch in die Kassendifferenz noch
+in den Bargeld-Vorschlag (siehe "Rechenlogik" unten).
 
 Pfand ist absichtlich **nicht** Teil des Datenmodells: Einkauf und
 Pfand-Rückerstattung laufen immer privat und komplett außerhalb der Kasse,
@@ -244,6 +252,9 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
   `BelegPosition`-Einträge an (Einzelpreis = `Getraenk.warenpreis`). Zeigt den
   Einkaufswert des laufenden Monats sowie eine Liste der zuletzt erfassten
   Belege inkl. Inhalt.
+- **Bestand** (`/bestand/`): errechneter Gesamtbestand je Getränk (eingekauft
+  minus verbraucht, komplette Historie) — keine eigene Dateneingabe, rein
+  informativ.
 - **Auswertung** (`/auswertung/`): eine Zählung auswählen (Standard: die
   letzte), zeigt sofort ihr Ergebnis — Soll-Kasse, Zusammensetzung des
   Bar-Anteils, PayPal-Anteil, Kassendifferenz sowie (rein informativ) den

@@ -21,7 +21,7 @@ from .models import (
     Zaehlung,
     ZaehlungVerbrauch,
 )
-from .services import berechne_auswertung, berechne_zeitraum
+from .services import berechne_auswertung, berechne_bestand, berechne_zeitraum
 
 
 def _zaehlung(datum, bargeld):
@@ -300,6 +300,67 @@ class ZeitraumAuswertungTests(TestCase):
         ergebnis = berechne_zeitraum([z1, z2])
         self.assertEqual(ergebnis.einkaufswert, Decimal("15.00"))
         self.assertEqual(ergebnis.soll_kasse, Decimal("40.00"))
+
+
+class BestandTests(TestCase):
+    def setUp(self):
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.15"), verkaufspreis=Decimal("1.50"),
+        )
+        self.cola = Getraenk.objects.create(
+            name="Cola", warenpreis=Decimal("0.40"), verkaufspreis=Decimal("2.00"),
+        )
+
+    def _beleg_position(self, getraenk, anzahl, datum="2026-06-01"):
+        beleg = Beleg.objects.create(datum=datum, gesamtbetrag=Decimal("1.00"))
+        BelegPosition.objects.create(
+            beleg=beleg, getraenk=getraenk, anzahl=anzahl, einzelpreis=getraenk.warenpreis
+        )
+
+    def test_bestand_ist_eingekauft_minus_verbraucht(self):
+        self._beleg_position(self.wasser, 10)
+        z = _zaehlung("2026-06-05", "0")
+        _verbrauch(z, self.wasser, 4)
+
+        bestaende = berechne_bestand()
+        wasser_bestand = next(b for b in bestaende if b.getraenk == self.wasser)
+        self.assertEqual(wasser_bestand.eingekauft, 10)
+        self.assertEqual(wasser_bestand.verbraucht, 4)
+        self.assertEqual(wasser_bestand.bestand, 6)
+
+    def test_getraenk_ohne_belege_oder_verbrauch_hat_bestand_null(self):
+        bestaende = berechne_bestand()
+        cola_bestand = next(b for b in bestaende if b.getraenk == self.cola)
+        self.assertEqual(cola_bestand.eingekauft, 0)
+        self.assertEqual(cola_bestand.verbraucht, 0)
+        self.assertEqual(cola_bestand.bestand, 0)
+
+    def test_summiert_mehrere_belege_und_zaehlungen(self):
+        self._beleg_position(self.wasser, 10, datum="2026-06-01")
+        self._beleg_position(self.wasser, 5, datum="2026-06-10")
+        z1 = _zaehlung("2026-06-05", "0")
+        z2 = _zaehlung("2026-06-15", "0")
+        _verbrauch(z1, self.wasser, 3)
+        _verbrauch(z2, self.wasser, 2)
+
+        bestaende = berechne_bestand()
+        wasser_bestand = next(b for b in bestaende if b.getraenk == self.wasser)
+        self.assertEqual(wasser_bestand.eingekauft, 15)
+        self.assertEqual(wasser_bestand.verbraucht, 5)
+        self.assertEqual(wasser_bestand.bestand, 10)
+
+    def test_freigetraenke_werden_nicht_doppelt_vom_bestand_abgezogen(self):
+        # Freigetraenke sind bereits Teil von "verbraucht" (das ist die
+        # physisch entnommene Menge) - sie duerfen nicht zusaetzlich nochmal
+        # vom Bestand abgezogen werden.
+        self._beleg_position(self.wasser, 10)
+        z = _zaehlung("2026-06-05", "0")
+        _verbrauch(z, self.wasser, 4)
+        Freigetraenk.objects.create(getraenk=self.wasser, datum="2026-06-05", anzahl=2)
+
+        bestaende = berechne_bestand()
+        wasser_bestand = next(b for b in bestaende if b.getraenk == self.wasser)
+        self.assertEqual(wasser_bestand.bestand, 6)
 
 
 class PaypalMatchingTests(TestCase):
@@ -701,6 +762,30 @@ class BelegNeuViewTests(TestCase):
         response = self.client.get(reverse("kasse:beleg_neu"))
         self.assertContains(response, "Getraenkemarkt")
         self.assertContains(response, "40,00")
+
+
+class BestandUebersichtViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.client.login(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.15"), verkaufspreis=Decimal("1.50"),
+        )
+
+    def test_zeigt_bestand_je_getraenk(self):
+        beleg = Beleg.objects.create(datum="2026-06-01", gesamtbetrag=Decimal("1.50"))
+        BelegPosition.objects.create(
+            beleg=beleg, getraenk=self.wasser, anzahl=10, einzelpreis=Decimal("0.15")
+        )
+        z = _zaehlung("2026-06-05", "0")
+        _verbrauch(z, self.wasser, 4)
+
+        response = self.client.get(reverse("kasse:bestand"))
+        self.assertContains(response, "Wasser")
+        self.assertEqual(
+            next(b for b in response.context["bestaende"] if b.getraenk == self.wasser).bestand,
+            6,
+        )
 
 
 class AuswertungViewTests(TestCase):

@@ -37,7 +37,7 @@ from .models import (
     ZaehlungVerbrauch,
     pruefe_monat_nicht_exportiert,
 )
-from .services import berechne_auswertung, berechne_zeitraum
+from .services import berechne_auswertung, berechne_bestand, berechne_zeitraum
 
 
 def _int_aus_post(data, key):
@@ -246,6 +246,15 @@ def beleg_neu(request):
             "einkaufswert_monat": einkaufswert_monat,
         },
     )
+
+
+@login_required
+def bestand_uebersicht(request):
+    """Ein einziger Gesamtbestand je Getraenk (kein Lager/Kuehlschrank mehr):
+    eingekaufte Menge (Belege) minus verbrauchte Menge (Zaehlungen), ueber die
+    komplette Historie. Rein informativ."""
+    bestaende = berechne_bestand()
+    return render(request, "kasse/bestand.html", {"bestaende": bestaende})
 
 
 @login_required

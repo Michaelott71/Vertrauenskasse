@@ -1,0 +1,33 @@
+{% extends "kasse/base.html" %}
+{% block title %}Bestand – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Bestand</h1>
+  <p class="muted">Ein Gesamtbestand je Getränk, keine Trennung nach Lagerort:
+    eingekaufte Menge (<a href="{% url 'kasse:beleg_neu' %}">Belege</a>) minus
+    verbrauchte Menge (Zählungen), über die komplette Historie. Rein
+    informativ, fließt in keine Berechnung der Kasse ein.</p>
+
+  <div class="card">
+    {% if bestaende %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Getränk</th><th>Eingekauft</th><th>Verbraucht</th><th>Bestand</th></tr>
+          </thead>
+          <tbody>
+            {% for b in bestaende %}
+              <tr>
+                <td>{{ b.getraenk.name }}</td>
+                <td>{{ b.eingekauft }}</td>
+                <td>{{ b.verbraucht }}</td>
+                <td class="{% if b.bestand < 0 %}negative{% endif %}">{{ b.bestand }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Noch keine Getränke angelegt.</p>
+    {% endif %}
+  </div>
+{% endblock %}

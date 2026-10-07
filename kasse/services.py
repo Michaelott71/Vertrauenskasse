@@ -12,6 +12,7 @@ from django.db.models import Q, Sum
 
 from .models import (
     Beleg,
+    BelegPosition,
     Freigetraenk,
     Getraenk,
     Kassenbewegung,
@@ -267,3 +268,42 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
     zeitraum.ist_kasse = zeitraum.bar_anteil + zeitraum.paypal_anteil
     zeitraum.kassendifferenz = zeitraum.ist_kasse - zeitraum.soll_kasse
     return zeitraum
+
+
+@dataclass
+class GetraenkBestand:
+    getraenk: Getraenk
+    eingekauft: int
+    verbraucht: int
+    bestand: int
+
+
+def berechne_bestand():
+    """Aktueller Bestand je Getraenk, ueber die komplette Historie: Summe
+    aller eingekauften Mengen (BelegPosition) minus Summe aller verbrauchten
+    Mengen (ZaehlungVerbrauch) - ein einziger Gesamtbestand, keine Trennung
+    nach Lagerort. Rein informativ, fliesst in keine Kassenberechnung ein."""
+    eingekauft = dict(
+        BelegPosition.objects.values("getraenk_id")
+        .annotate(summe=Sum("anzahl"))
+        .values_list("getraenk_id", "summe")
+    )
+    verbraucht = dict(
+        ZaehlungVerbrauch.objects.values("getraenk_id")
+        .annotate(summe=Sum("verbraucht"))
+        .values_list("getraenk_id", "summe")
+    )
+
+    ergebnisse = []
+    for getraenk in Getraenk.objects.order_by("name"):
+        anzahl_eingekauft = eingekauft.get(getraenk.id, 0)
+        anzahl_verbraucht = verbraucht.get(getraenk.id, 0)
+        ergebnisse.append(
+            GetraenkBestand(
+                getraenk=getraenk,
+                eingekauft=anzahl_eingekauft,
+                verbraucht=anzahl_verbraucht,
+                bestand=anzahl_eingekauft - anzahl_verbraucht,
+            )
+        )
+    return ergebnisse
