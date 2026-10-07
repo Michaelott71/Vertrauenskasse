@@ -309,6 +309,16 @@ class MonatsExportLockTests(TestCase):
         fg = Freigetraenk(getraenk=self.getraenk, datum=datetime.date(2026, 7, 15), anzahl=1)
         fg.clean()  # keine Exception
 
+    def test_zaehlung_in_exportiertem_monat_wird_blockiert(self):
+        zaehlung = _zaehlung("2026-06-15", "0")
+        zaehlung.bargeld_gezaehlt = Decimal("99.00")
+        with self.assertRaises(GesperrterMonatError):
+            zaehlung.clean()
+
+    def test_zaehlung_in_nicht_exportiertem_monat_ist_erlaubt(self):
+        zaehlung = _zaehlung("2026-07-15", "0")
+        zaehlung.clean()  # keine Exception
+
     def test_zaehlungsverbrauch_in_exportiertem_monat_wird_blockiert(self):
         zaehlung = _zaehlung("2026-06-15", "0")
         verbrauch = ZaehlungVerbrauch(zaehlung=zaehlung, getraenk=self.getraenk, verbraucht=5)

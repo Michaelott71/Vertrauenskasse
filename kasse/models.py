@@ -75,6 +75,15 @@ class Zaehlung(models.Model):
     def __str__(self):
         return self.belegnummer or f"Zaehlung vom {self.datum}"
 
+    def clean(self):
+        if self.datum:
+            datum = self.datum
+            if isinstance(datum, str):
+                from django.utils.dateparse import parse_date
+
+                datum = parse_date(datum)
+            pruefe_monat_nicht_exportiert(datum, "Eine Änderung an dieser Zählung")
+
     def _naechste_laufende_nummer(self):
         vorhandene = Zaehlung.objects.filter(
             datum__year=self.datum.year, datum__month=self.datum.month

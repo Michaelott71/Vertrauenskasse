@@ -85,8 +85,8 @@ keine neuen fachlichen Konzepte):
   Stichwortliste" inkl. automatisch gelernter, wiederkehrender Betreffs.
 - `MonatsExport` (neue Tabelle): merkt sich, welche Monate bereits als CSV
   exportiert wurden, um die Regel "Korrekturen nur bis zum Export rückwirkend
-  möglich" technisch durchzusetzen (gilt auch für `ZaehlungVerbrauch` und
-  `Kassenbewegung`, nicht nur für `Freigetraenk`).
+  möglich" technisch durchzusetzen (gilt für `Zaehlung` selbst inkl.
+  `bargeld_gezaehlt`, `ZaehlungVerbrauch`, `Freigetraenk` und `Kassenbewegung`).
 
 ## Rechenlogik
 
