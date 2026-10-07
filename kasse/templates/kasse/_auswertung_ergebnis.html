@@ -32,6 +32,53 @@
 </div>
 
 <div class="card">
+  <h2>Gewinn (ungefähr)</h2>
+  <p class="muted">Soll-Kasse abzüglich der in diesem Zeitraum erfassten Einkäufe
+    (<a href="{% url 'kasse:beleg_neu' %}">Belege</a>). Rein informativ, fließt
+    nicht in die Kassendifferenz ein.</p>
+  <div class="summary-grid">
+    <div class="summary-item">
+      <div class="muted">Soll-Kasse</div>
+      <div class="value">{{ result.soll_kasse }} €</div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">− Einkaufswert (Belege)</div>
+      <div class="value">{{ result.einkaufswert }} €</div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">= Gewinn</div>
+      <div class="value {% if result.gewinn < 0 %}negative{% else %}positive{% endif %}">
+        {{ result.gewinn }} €
+      </div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">Wert ausgegebener Freigetränke</div>
+      <div class="value">{{ result.freigetraenke_wert }} €</div>
+    </div>
+  </div>
+  {% if result.belege %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Datum</th><th>Händler</th><th>Gesamtbetrag</th></tr>
+        </thead>
+        <tbody>
+          {% for b in result.belege %}
+            <tr>
+              <td>{{ b.datum }}</td>
+              <td>{{ b.haendler|default:"–" }}</td>
+              <td>{{ b.gesamtbetrag }} €</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">Keine Einkäufe in diesem Zeitraum erfasst.</p>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>Wie sich der Bar-Anteil zusammensetzt</h2>
   <div class="summary-grid">
     <div class="summary-item">

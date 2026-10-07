@@ -9,6 +9,7 @@ urlpatterns = [
     path("zaehlung/neu/", views.zaehlung_neu, name="zaehlung_neu"),
     path("freigetraenk/neu/", views.freigetraenk_neu, name="freigetraenk_neu"),
     path("kassenbewegung/neu/", views.kassenbewegung_neu, name="kassenbewegung_neu"),
+    path("beleg/neu/", views.beleg_neu, name="beleg_neu"),
     path("auswertung/", views.auswertung, name="auswertung"),
     path("auswertung/monat/", views.monatsauswertung, name="monatsauswertung"),
     path("paypal/", views.paypal_abgleich, name="paypal_abgleich"),

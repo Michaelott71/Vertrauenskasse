@@ -55,7 +55,7 @@ die für die geforderte Rechen-/Zuordnungslogik technisch nötig sind (siehe
 | `Getraenk` | Artikel: Name, Warenpreis (ohne Pfand), Verkaufspreis, aktiv |
 | `Zaehlung` | Ein Zählungszeitpunkt (Datum, Notiz, Bargeld gezählt, Belegnummer `VK-JJJJ-MM-NN`) |
 | `ZaehlungVerbrauch` | Direkt eingetragen: wie viel von einem Artikel seit der letzten Zählung verbraucht/verkauft wurde (kein Bestand wird gezählt oder verglichen) |
-| `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Händler) — gilt immer automatisch als private Einlage, rein dokumentarisch |
+| `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Händler) — gilt immer automatisch als private Einlage; fließt nicht in die Kassendifferenz ein, nur informativ in den ausgewiesenen Gewinn |
 | `BelegPosition` | Positionen eines Belegs je Getränk (Einkaufsmenge), Einzelpreis nur der Warenpreis ohne Pfand-Anteil |
 | `Freigetraenk` | Freigetränke je Getränk, auch rückwirkend nachtragbar (bis zum CSV-Export des Monats) |
 | `Kassenbewegung` | Bargeldbewegung ohne Bezug zum Getränkeverkauf: Einlage, Entnahme oder fremder Bargeldeingang |
@@ -67,7 +67,9 @@ zwischen Lager und Kühlschrank. Stattdessen trägt man bei jeder Zählung
 direkt ein, wie viel seit der letzten Zählung verbraucht/verkauft wurde
 (`ZaehlungVerbrauch`) — das ist bei der überschaubaren Menge an Artikeln
 einfacher als ein Bestandsabgleich. `Beleg`/`BelegPosition` dokumentieren
-nur noch den Einkauf (Wareneinsatz) und fließen in keine Berechnung ein.
+den Einkauf (Wareneinsatz); der Gesamtbetrag eines Belegs fließt in den
+informativen Gewinn-Wert der Auswertung ein (siehe "Rechenlogik" unten),
+nicht aber in die Kassendifferenz.
 
 Pfand ist absichtlich **nicht** Teil des Datenmodells: Einkauf und
 Pfand-Rückerstattung laufen immer privat und komplett außerhalb der Kasse,
@@ -86,7 +88,8 @@ keine neuen fachlichen Konzepte):
 - `MonatsExport` (neue Tabelle): merkt sich, welche Monate bereits als CSV
   exportiert wurden, um die Regel "Korrekturen nur bis zum Export rückwirkend
   möglich" technisch durchzusetzen (gilt für `Zaehlung` selbst inkl.
-  `bargeld_gezaehlt`, `ZaehlungVerbrauch`, `Freigetraenk` und `Kassenbewegung`).
+  `bargeld_gezaehlt`, `ZaehlungVerbrauch`, `Freigetraenk`, `Kassenbewegung`
+  und `Beleg`).
 
 ## Rechenlogik
 
@@ -116,10 +119,29 @@ Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
 - Solange im Zeitraum noch ungeklärte PayPal-Zahlungen liegen (Klärungsliste),
   markiert die Auswertung das Ergebnis als **vorläufig**: die Bar-Differenz
   kann dann normal negativ sein, das ist kein Alarmsignal.
-- Einkaufsbelege (`BelegPosition`) gehen **nicht** in diese Formel ein, rein
-  dokumentarisch (Wareneinsatz).
+- Einkaufsbelege (`BelegPosition`) gehen **nicht** in die Kassendifferenz ein,
+  rein dokumentarisch (Wareneinsatz) — ihr Gesamtbetrag fließt nur in den
+  separat ausgewiesenen Gewinn (siehe unten).
 - Für Zeiträume über mehrere Zählungen (Monatsauswertung, CSV-Export) summiert
   `berechne_zeitraum(zaehlungen)` einfach die Einzelergebnisse jeder Zählung.
+
+### Gewinn, Einkaufswert, Freigetränke-Wert (informativ)
+
+Zusätzlich zur Kassendifferenz zeigt die Auswertung einen **ungefähren
+Gewinn**, berechnet aus den im selben Zeitraum erfassten Einkäufen (`Beleg`,
+Seite "Einkäufe", `/beleg/neu/`):
+
+- `Einkaufswert = Σ Beleg.gesamtbetrag` aller Belege seit der letzten Zählung
+- `Gewinn = Soll-Kasse − Einkaufswert`
+- `Freigetränke-Wert = Σ Freigetränke(i) × Verkaufspreis(i)` — zeigt, wie viel
+  Umsatz durch ausgegebene Freigetränke verschenkt wurde
+
+Diese drei Werte sind **rein informativ** und fließen nicht in Soll-Kasse,
+Ist-Kasse oder Kassendifferenz ein — ein fehlender oder ungenauer Beleg
+verändert also nie, ob die Kasse stimmt. "Ungefähr", weil der Einkaufswert
+nur so genau ist wie die tatsächlich erfassten Belege (z.B. wenn ein Einkauf
+vergessen wird) und nicht verbrauchsgenau einem bestimmten Zeitraum
+zugeordnet werden kann.
 
 Es gibt bewusst **keine** Leergut-/Pfand-Differenzrechnung: Einkauf und
 Pfand-Rückgabe sind private Angelegenheiten von Nick und fließen nie durch
@@ -191,20 +213,27 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
 - **Kassenbewegung** (`/kassenbewegung/neu/`): Einlage/Entnahme/fremder
   Bargeldeingang über ein großes Zahlenfeld erfassen, darunter die
   Vertrauenskassenliste (chronologisches Journal).
+- **Einkäufe** (`/beleg/neu/`): Einkaufsbelege direkt im Haupt-UI erfassen
+  (Datum, Händler, Gesamtbetrag, optional Beleg-Scan hochladen) — ohne Admin.
+  Zeigt den Einkaufswert des laufenden Monats sowie eine Liste der zuletzt
+  erfassten Belege. Einzelne Positionen je Artikel können bei Bedarf weiterhin
+  in der Verwaltung (Admin) ergänzt werden.
 - **Auswertung** (`/auswertung/`): eine Zählung auswählen (Standard: die
   letzte), zeigt sofort ihr Ergebnis — Soll-Kasse, Zusammensetzung des
-  Bar-Anteils, PayPal-Anteil und Kassendifferenz. Kein Start/Ende-Picker
-  nötig, jede Zählung steht für sich.
+  Bar-Anteils, PayPal-Anteil, Kassendifferenz sowie den ungefähren Gewinn,
+  den Einkaufswert der erfassten Belege und den Wert ausgegebener
+  Freigetränke. Kein Start/Ende-Picker nötig, jede Zählung steht für sich.
 - **Monatsauswertung** (`/auswertung/monat/`): alle Zählungen eines Monats
   plus Gesamtergebnis (Summe aller Einzelergebnisse des Monats).
 - **PayPal-Abgleich** (`/paypal/`): neue Zahlungen erfassen (automatische
   Zuordnung läuft sofort) und die Klärungsliste einmal monatlich abarbeiten.
 - **CSV-Export** (`/export/`): Monat auswählen, CSV herunterladen.
-- **Verwaltung** (`/admin/`): Getränke, Belege (inkl. Positionen),
+- **Verwaltung** (`/admin/`): Getränke, einzelne Belegpositionen je Artikel,
   Freigetränke, Kassenbewegungen, PayPal-Zahlungen und Stichwörter pflegen.
 
-Belege-Upload/OCR ist **nicht** Teil dieser ersten Version (das `Beleg`-Modell
-inkl. Dateiupload existiert bereits für eine spätere Erweiterung).
+Beleg-OCR (automatisches Auslesen des Gesamtbetrags aus dem Scan) ist
+**nicht** Teil dieser Version — der Betrag wird manuell eingetragen, der
+Scan selbst kann optional hochgeladen werden.
 
 ## Deployment
 

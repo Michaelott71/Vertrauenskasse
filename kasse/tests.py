@@ -196,6 +196,33 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.entnahmen, Decimal("0"))
         self.assertEqual(ergebnis.bar_anteil, Decimal("142.50"))
 
+    def test_einkaufswert_wird_vom_soll_kasse_abgezogen_zu_gewinn(self):
+        Beleg.objects.create(
+            datum="2026-06-10", gesamtbetrag=Decimal("40.00"), haendler="Getraenkemarkt"
+        )
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(ergebnis.einkaufswert, Decimal("40.00"))
+        self.assertEqual(ergebnis.gewinn, ergebnis.soll_kasse - Decimal("40.00"))
+        self.assertEqual(len(ergebnis.belege), 1)
+
+    def test_beleg_ausserhalb_zeitraum_zaehlt_nicht_zum_einkaufswert(self):
+        Beleg.objects.create(
+            datum="2026-05-01", gesamtbetrag=Decimal("40.00"), haendler="Vorher"
+        )
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(ergebnis.einkaufswert, Decimal("0"))
+        self.assertEqual(ergebnis.belege, [])
+
+    def test_freigetraenke_wert_wird_zu_verkaufspreis_berechnet(self):
+        Freigetraenk.objects.create(
+            getraenk=self.wasser, datum="2026-06-05", anzahl=5, kommentar="Team"
+        )
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(ergebnis.freigetraenke_wert, 5 * Decimal("1.50"))
+
 
 class ZeitraumAuswertungTests(TestCase):
     def test_summiert_mehrere_zaehlungen(self):
@@ -216,6 +243,20 @@ class ZeitraumAuswertungTests(TestCase):
 
     def test_leere_liste_gibt_none(self):
         self.assertIsNone(berechne_zeitraum([]))
+
+    def test_summiert_einkaufswert_und_gewinn(self):
+        getraenk = Getraenk.objects.create(
+            name="Cola", warenpreis=Decimal("0.40"), verkaufspreis=Decimal("2.00")
+        )
+        z1 = _zaehlung("2026-08-01", "0")
+        z2 = _zaehlung("2026-08-10", "0")
+        _verbrauch(z1, getraenk, 0)
+        _verbrauch(z2, getraenk, 20)
+        Beleg.objects.create(datum="2026-08-05", gesamtbetrag=Decimal("15.00"))
+
+        ergebnis = berechne_zeitraum([z1, z2])
+        self.assertEqual(ergebnis.einkaufswert, Decimal("15.00"))
+        self.assertEqual(ergebnis.gewinn, Decimal("40.00") - Decimal("15.00"))
 
 
 class PaypalMatchingTests(TestCase):
@@ -335,6 +376,19 @@ class MonatsExportLockTests(TestCase):
         )
         with self.assertRaises(GesperrterMonatError):
             bewegung.clean()
+
+    def test_beleg_in_exportiertem_monat_wird_blockiert(self):
+        import datetime
+
+        beleg = Beleg(datum=datetime.date(2026, 6, 15), gesamtbetrag=Decimal("10.00"))
+        with self.assertRaises(GesperrterMonatError):
+            beleg.clean()
+
+    def test_beleg_in_nicht_exportiertem_monat_ist_erlaubt(self):
+        import datetime
+
+        beleg = Beleg(datum=datetime.date(2026, 7, 15), gesamtbetrag=Decimal("10.00"))
+        beleg.clean()  # keine Exception
 
 
 class CsvExportTests(TestCase):
@@ -486,6 +540,43 @@ class KassenbewegungNeuViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Kassenbewegung.objects.exists())
+
+
+class BelegNeuViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.client.login(username="tester", password="pw12345678")
+
+    def test_post_erstellt_beleg(self):
+        response = self.client.post(
+            reverse("kasse:beleg_neu"),
+            {
+                "datum": "2026-06-01",
+                "haendler": "Getraenkemarkt",
+                "gesamtbetrag": "40.00",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        beleg = Beleg.objects.get()
+        self.assertEqual(beleg.gesamtbetrag, Decimal("40.00"))
+        self.assertEqual(beleg.haendler, "Getraenkemarkt")
+
+    def test_post_in_exportiertem_monat_wird_blockiert(self):
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        response = self.client.post(
+            reverse("kasse:beleg_neu"),
+            {"datum": "2026-06-15", "haendler": "", "gesamtbetrag": "10.00"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Beleg.objects.exists())
+
+    def test_liste_zeigt_erfasste_belege(self):
+        Beleg.objects.create(
+            datum="2026-06-01", gesamtbetrag=Decimal("40.00"), haendler="Getraenkemarkt"
+        )
+        response = self.client.get(reverse("kasse:beleg_neu"))
+        self.assertContains(response, "Getraenkemarkt")
+        self.assertContains(response, "40,00")
 
 
 class AuswertungViewTests(TestCase):

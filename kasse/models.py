@@ -154,6 +154,10 @@ class Beleg(models.Model):
     def __str__(self):
         return f"Beleg {self.haendler} vom {self.datum}"
 
+    def clean(self):
+        if self.datum:
+            pruefe_monat_nicht_exportiert(self.datum, "Ein nachgetragener Beleg")
+
 
 class BelegPosition(models.Model):
     beleg = models.ForeignKey(

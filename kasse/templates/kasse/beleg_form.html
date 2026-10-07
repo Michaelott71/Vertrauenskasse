@@ -1,0 +1,56 @@
+{% extends "kasse/base.html" %}
+{% block title %}Einkäufe – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Einkäufe (Belege)</h1>
+  <p class="muted">Jeder Einkaufsbeleg (z.B. Getränkekiste) wird hier mit dem
+    Gesamtbetrag erfasst. Der Einkaufswert fließt nicht in die Kassendifferenz
+    ein, sondern nur in den ungefähren Gewinn (Soll-Kasse − Einkaufswert), der
+    in der Auswertung angezeigt wird.</p>
+
+  <div class="card">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <p class="negative">{{ form.non_field_errors }}</p>
+      {% endif %}
+      {{ form.as_p }}
+      <button type="submit">Beleg speichern</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Einkaufswert diesen Monat</h2>
+    <div class="value">{{ einkaufswert_monat }} €</div>
+  </div>
+
+  <div class="card">
+    <h2>Zuletzt erfasste Belege</h2>
+    {% if belege %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Datum</th><th>Händler</th><th>Gesamtbetrag</th><th>Scan</th></tr>
+          </thead>
+          <tbody>
+            {% for b in belege %}
+              <tr>
+                <td>{{ b.datum }}</td>
+                <td>{{ b.haendler|default:"–" }}</td>
+                <td>{{ b.gesamtbetrag }} €</td>
+                <td>
+                  {% if b.dateipfad %}
+                    <a href="{% url 'kasse:media' b.dateipfad.name %}" target="_blank">ansehen</a>
+                  {% else %}
+                    –
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Noch keine Belege erfasst.</p>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -13,6 +14,7 @@ from django.utils import timezone
 from . import matching
 from .export import erzeuge_csv, markiere_als_exportiert
 from .forms import (
+    BelegForm,
     ExportForm,
     FreigetraenkMetaForm,
     KassenbewegungForm,
@@ -22,6 +24,7 @@ from .forms import (
     ZaehlungMetaForm,
 )
 from .models import (
+    Beleg,
     Freigetraenk,
     GesperrterMonatError,
     Getraenk,
@@ -163,6 +166,37 @@ def kassenbewegung_neu(request):
         request,
         "kasse/kassenbewegung_form.html",
         {"form": form, "bewegungen": bewegungen},
+    )
+
+
+@login_required
+def beleg_neu(request):
+    if request.method == "POST":
+        form = BelegForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Beleg gespeichert.")
+            return redirect(reverse("kasse:beleg_neu"))
+    else:
+        form = BelegForm(initial={"datum": timezone.localdate()})
+
+    heute = timezone.localdate()
+    monatsbelege = Beleg.objects.filter(
+        datum__year=heute.year, datum__month=heute.month
+    )
+    einkaufswert_monat = monatsbelege.aggregate(summe=Sum("gesamtbetrag"))[
+        "summe"
+    ] or 0
+
+    belege = Beleg.objects.all()[:50]
+    return render(
+        request,
+        "kasse/beleg_form.html",
+        {
+            "form": form,
+            "belege": belege,
+            "einkaufswert_monat": einkaufswert_monat,
+        },
     )
 
 

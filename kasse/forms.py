@@ -2,7 +2,7 @@ import calendar
 
 from django import forms
 
-from .models import Kassenbewegung, PaypalZahlung, Zaehlung
+from .models import Beleg, Kassenbewegung, PaypalZahlung, Zaehlung
 
 
 class ZaehlungMetaForm(forms.ModelForm):
@@ -49,6 +49,31 @@ class KassenbewegungForm(forms.ModelForm):
         widgets = {
             "datum": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "betrag": forms.NumberInput(
+                attrs={
+                    "step": "0.01",
+                    "inputmode": "decimal",
+                    "class": "betrag-input-gross",
+                }
+            ),
+        }
+
+
+class BelegForm(forms.ModelForm):
+    """Erfassung eines Einkaufsbelegs im Haupt-UI (ohne Admin). Nur der
+    Gesamtbetrag fliesst in die Gewinn-Berechnung ein; einzelne Positionen
+    koennen bei Bedarf weiterhin in der Verwaltung ergaenzt werden."""
+
+    class Meta:
+        model = Beleg
+        fields = ["datum", "haendler", "gesamtbetrag", "dateipfad"]
+        labels = {
+            "gesamtbetrag": "Gesamtbetrag (Einkaufswert)",
+            "haendler": "Händler",
+            "dateipfad": "Beleg-Scan (optional)",
+        }
+        widgets = {
+            "datum": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "gesamtbetrag": forms.NumberInput(
                 attrs={
                     "step": "0.01",
                     "inputmode": "decimal",

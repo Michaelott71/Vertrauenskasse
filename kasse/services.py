@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.db.models import Q, Sum
 
 from .models import (
+    Beleg,
     Freigetraenk,
     Getraenk,
     Kassenbewegung,
@@ -46,6 +47,10 @@ class Auswertung:
     ist_kasse: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
     vorlaeufig: bool = False
+    freigetraenke_wert: Decimal = Decimal("0")
+    belege: list = field(default_factory=list)
+    einkaufswert: Decimal = Decimal("0")
+    gewinn: Decimal = Decimal("0")
 
 
 def vorherige_zaehlung(zaehlung: Zaehlung):
@@ -108,6 +113,7 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
             )
         )
         auswertung.soll_kasse += soll_kasse_i
+        auswertung.freigetraenke_wert += freigetraenke * getraenk.verkaufspreis
 
     # Bargeld-Differenz: einfache Differenz des gezaehlten Bargelds seit der
     # letzten Zaehlung (0, wenn dies die allererste Zaehlung ist).
@@ -153,6 +159,18 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     auswertung.ist_kasse = auswertung.bar_anteil + auswertung.paypal_anteil
     auswertung.kassendifferenz = auswertung.ist_kasse - auswertung.soll_kasse
 
+    # Einkaufswert/Gewinn: rein informativ, fliesst nicht in Soll-/Ist-Kasse
+    # oder die Kassendifferenz ein (siehe README).
+    belege_filter = Beleg.objects.filter(datum__lte=zaehlung.datum)
+    if start_datum:
+        belege_filter = belege_filter.filter(datum__gt=start_datum)
+    belege = list(belege_filter.order_by("datum", "id"))
+    auswertung.belege = belege
+    auswertung.einkaufswert = sum(
+        (b.gesamtbetrag for b in belege), Decimal("0")
+    )
+    auswertung.gewinn = auswertung.soll_kasse - auswertung.einkaufswert
+
     return auswertung
 
 
@@ -172,6 +190,10 @@ class ZeitraumAuswertung:
     ist_kasse: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
     vorlaeufig: bool = False
+    freigetraenke_wert: Decimal = Decimal("0")
+    belege: list = field(default_factory=list)
+    einkaufswert: Decimal = Decimal("0")
+    gewinn: Decimal = Decimal("0")
 
 
 def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
@@ -195,6 +217,9 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.bar_anteil += ergebnis.bar_anteil
         zeitraum.paypal_anteil += ergebnis.paypal_anteil
         zeitraum.vorlaeufig = zeitraum.vorlaeufig or ergebnis.vorlaeufig
+        zeitraum.freigetraenke_wert += ergebnis.freigetraenke_wert
+        zeitraum.belege += ergebnis.belege
+        zeitraum.einkaufswert += ergebnis.einkaufswert
 
         for position in ergebnis.positionen:
             aggregiert = positionen_je_getraenk.setdefault(
@@ -218,4 +243,5 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
     )
     zeitraum.ist_kasse = zeitraum.bar_anteil + zeitraum.paypal_anteil
     zeitraum.kassendifferenz = zeitraum.ist_kasse - zeitraum.soll_kasse
+    zeitraum.gewinn = zeitraum.soll_kasse - zeitraum.einkaufswert
     return zeitraum
