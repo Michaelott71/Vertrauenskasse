@@ -172,7 +172,23 @@ class AuswertungTests(TestCase):
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
         self.assertEqual(ergebnis.einlagen, Decimal("30.00"))
+        self.assertEqual(ergebnis.netto_kassenbewegungen, Decimal("30.00"))
         self.assertEqual(ergebnis.bar_anteil, Decimal("112.50"))
+
+    def test_netto_kassenbewegungen_ist_einlagen_plus_fremde_minus_entnahmen(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-10", betrag=Decimal("20.00")
+        )
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.ENTNAHME, datum="2026-06-11", betrag=Decimal("5.00")
+        )
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.FREMDER_BARGELDEINGANG, datum="2026-06-12", betrag=Decimal("8.00")
+        )
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(ergebnis.netto_kassenbewegungen, Decimal("20.00") + Decimal("8.00") - Decimal("5.00"))
+        self.assertEqual(ergebnis.bar_anteil, ergebnis.bargeld_differenz - ergebnis.netto_kassenbewegungen)
 
     def test_fremder_bargeldeingang_wird_von_bargelddifferenz_abgezogen(self):
         Kassenbewegung.objects.create(
@@ -514,7 +530,7 @@ class CsvExportTests(TestCase):
         header = csv_text.splitlines()[0]
         self.assertEqual(
             header,
-            "Datum;Belegnummer;Artikel;Menge;Netto;USt-Satz;USt-Betrag;Brutto;Zahlungsart;Referenz",
+            "Datum;Belegnummer;Artikel;Menge;Netto;USt-Satz;USt-Betrag;Brutto;Zahlungsart;Referenz;Notiz",
         )
 
     def test_bar_und_paypal_zeilen_mit_deutscher_zahlenformatierung(self):
@@ -536,6 +552,60 @@ class CsvExportTests(TestCase):
         self.assertFalse(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
         markiere_als_exportiert(2026, 6)
         self.assertTrue(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
+
+    def test_notiz_der_zaehlung_erscheint_in_der_csv(self):
+        self.ende.notiz = "Kunde hat vergessen zu bezahlen"
+        self.ende.save()
+        _, csv_text, _ = erzeuge_csv(2026, 6)
+        rows = list(csv.DictReader(io.StringIO(csv_text), delimiter=";"))
+        bar_zeile = next(r for r in rows if r["Zahlungsart"] == "Bar")
+        self.assertEqual(bar_zeile["Notiz"], "Kunde hat vergessen zu bezahlen")
+
+    def test_anfangsbestand_und_endbestand_in_kassenbestand_uebersicht(self):
+        _, csv_text, warnungen = erzeuge_csv(2026, 6)
+        rows = list(csv.DictReader(io.StringIO(csv_text), delimiter=";"))
+        kassenbestand_rows = [r for r in rows if r["Zahlungsart"] == "Kassenbestand"]
+        anfang = next(r for r in kassenbestand_rows if r["Artikel"] == "Anfangsbestand")
+        ende = next(r for r in kassenbestand_rows if r["Artikel"] == "Endbestand")
+        self.assertEqual(anfang["Brutto"], "0,00")
+        self.assertEqual(ende["Brutto"], "60,00")
+        self.assertEqual(warnungen, [])
+
+    def test_kassenbewegung_erscheint_in_kassenbestand_uebersicht(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-05", betrag=Decimal("35.00"),
+            notiz="Kassenanfangssaldo",
+        )
+        _, csv_text, _ = erzeuge_csv(2026, 6)
+        rows = list(csv.DictReader(io.StringIO(csv_text), delimiter=";"))
+        einlage_zeile = next(
+            r for r in rows
+            if r["Zahlungsart"] == "Kassenbestand" and r["Artikel"] == "Einlage (Privateinlage)"
+        )
+        self.assertEqual(einlage_zeile["Brutto"], "35,00")
+        self.assertEqual(einlage_zeile["Referenz"], "Kassenanfangssaldo")
+
+    def test_zaehlung_mit_kassendifferenz_aber_bar_anteil_null_erscheint_trotzdem(self):
+        # Bargeld-Differenz zufaellig 0, obwohl Soll-Kasse 60 EUR war -> es
+        # gibt eine Kassendifferenz von -60 EUR, die Zeile darf nicht
+        # verschwinden (sonst fehlt genau die Information, die der
+        # Steuerberater fuer die Differenz-Erklaerung braucht).
+        self.ende.bargeld_gezaehlt = Decimal("0.00")
+        self.ende.notiz = "Komplette Differenz, Grund unklar"
+        self.ende.save()
+        _, csv_text, _ = erzeuge_csv(2026, 6)
+        rows = list(csv.DictReader(io.StringIO(csv_text), delimiter=";"))
+        bar_zeile = next(r for r in rows if r["Zahlungsart"] == "Bar")
+        self.assertEqual(bar_zeile["Brutto"], "0,00")
+        self.assertEqual(bar_zeile["Notiz"], "Komplette Differenz, Grund unklar")
+
+    def test_warnung_wenn_endbestand_nicht_bestaetigt(self):
+        self.ende.bargeld_gezaehlt = None
+        self.ende.save()
+        _, csv_text, warnungen = erzeuge_csv(2026, 6)
+        self.assertTrue(any("Endbestand" in w for w in warnungen))
+        rows = list(csv.DictReader(io.StringIO(csv_text), delimiter=";"))
+        self.assertFalse(any(r["Artikel"] == "Endbestand" for r in rows))
 
 
 class ZaehlungNeuViewTests(TestCase):
@@ -801,7 +871,9 @@ class AuswertungViewTests(TestCase):
         zaehlung = _zaehlung("2026-06-01", "20.00")
         response = self.client.get(reverse("kasse:auswertung"))
         self.assertContains(response, zaehlung.belegnummer)
-        self.assertContains(response, "Soll-Kasse")
+        self.assertContains(response, "Soll-Kassenbestand")
+        self.assertContains(response, "Ist-Kassenbestand")
+        self.assertNotContains(response, "PayPal-Anteil (Ist)")
 
     def test_auswahl_zeigt_gewaehlte_zaehlung(self):
         z1 = _zaehlung("2026-06-01", "0")
@@ -813,6 +885,39 @@ class AuswertungViewTests(TestCase):
         zaehlung = Zaehlung.objects.create(datum="2026-06-01")
         response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": zaehlung.pk})
         self.assertContains(response, "noch kein Bargeld bestätigt")
+
+    def test_zeigt_differenz_erklaeren_formular_bei_differenz(self):
+        _zaehlung("2026-06-01", "0")
+        zaehlung = _zaehlung("2026-06-15", "999.00")  # bewusst falsch -> Differenz
+        response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": zaehlung.pk})
+        self.assertContains(response, "Kassendifferenz erklären")
+
+    def test_kein_differenz_erklaeren_formular_ohne_differenz(self):
+        zaehlung = _zaehlung("2026-06-01", "0")
+        response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": zaehlung.pk})
+        self.assertNotContains(response, "Kassendifferenz erklären")
+
+    def test_post_speichert_differenz_erklaerung(self):
+        zaehlung = _zaehlung("2026-06-15", "999.00")
+        response = self.client.post(
+            reverse("kasse:auswertung") + f"?zaehlung={zaehlung.pk}",
+            {"zaehlung_id": zaehlung.pk, "notiz": "Kunde hat vergessen zu zahlen", "notiz_speichern": "1"},
+        )
+        self.assertRedirects(
+            response, f"{reverse('kasse:auswertung')}?zaehlung={zaehlung.pk}"
+        )
+        zaehlung.refresh_from_db()
+        self.assertEqual(zaehlung.notiz, "Kunde hat vergessen zu zahlen")
+
+    def test_differenz_erklaerung_in_exportiertem_monat_wird_blockiert(self):
+        zaehlung = _zaehlung("2026-06-15", "999.00")
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        self.client.post(
+            reverse("kasse:auswertung") + f"?zaehlung={zaehlung.pk}",
+            {"zaehlung_id": zaehlung.pk, "notiz": "nachtraeglich", "notiz_speichern": "1"},
+        )
+        zaehlung.refresh_from_db()
+        self.assertEqual(zaehlung.notiz, "")
 
     def test_keine_warnung_wenn_bargeld_erfasst(self):
         z = _zaehlung("2026-06-01", "0")

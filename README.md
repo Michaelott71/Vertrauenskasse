@@ -114,21 +114,29 @@ Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
 - `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)` (Verkaufspreis ohne Pfand-Anteil)
 - `Bargeld-Differenz = bargeld_gezählt(jetzt) − bargeld_gezählt(letzte Zählung)`
   (0 statt letzterem, wenn dies die allererste Zählung ist)
-- `Bar-Anteil (Getränke) = Bargeld-Differenz + Entnahmen − Einlagen − fremde Bargeldeingänge`
-  (die drei `Kassenbewegung`-Arten seit der letzten Zählung, siehe unten —
-  ohne diese Bereinigung würde z.B. eine Entnahme wie ein Fehlbetrag aussehen,
-  eine private Einlage oder ein fremder Bargeldeingang hingegen wie
+- `Netto aus Kassenbewegungen = Einlagen + fremde Bargeldeingänge − Entnahmen`
+  (die drei `Kassenbewegung`-Arten seit der letzten Zählung, siehe unten, mit
+  ihrem natürlichen Vorzeichen: Geld, das reinkam, plus; Geld, das
+  rausgenommen wurde, minus)
+- `Bar-Anteil (aus Getränkeverkauf) = Bargeld-Differenz − Netto aus Kassenbewegungen`
+  (ohne diese Bereinigung würde z.B. eine Entnahme wie ein Fehlbetrag
+  aussehen, eine private Einlage oder ein fremder Bargeldeingang hingegen wie
   zusätzlicher Getränkeumsatz)
 - `PayPal-Anteil = Σ PayPal-Zahlungen mit ist_Getränke_Zahlung=True, die dieser Zählung zugeordnet sind`
-- `Ist-Kasse = Bar-Anteil + PayPal-Anteil`
-- `Kassendifferenz = Ist-Kasse − Soll-Kasse` (keine Rundungstoleranz, exakt ausgewiesen)
-- Anzeige in der Auswertung: zuerst Soll-Kasse, dann die Zusammensetzung des
-  Bar-Anteils (Bargeld-Differenz, Entnahmen, Einlagen, fremde Bargeldeingänge)
-  und der PayPal-Anteil, erst danach die Kassendifferenz — damit online
+- `Ist-Kassenbestand = Bar-Anteil + PayPal-Anteil`
+- `Kassendifferenz = Ist-Kassenbestand − Soll-Kassenbestand` (keine Rundungstoleranz, exakt ausgewiesen)
+- Anzeige in der Auswertung: zuerst Soll-Kassenbestand und Ist-Kassenbestand
+  nebeneinander, dann die Kassendifferenz, danach die Zusammensetzung des
+  Bar-Anteils (Bargeld-Differenz, Netto aus Kassenbewegungen) — damit online
   bezahlte Getränke oder eine Bargeld-Entnahme nie wie ein Fehlbetrag aussehen.
 - Solange im Zeitraum noch ungeklärte PayPal-Zahlungen liegen (Klärungsliste),
   markiert die Auswertung das Ergebnis als **vorläufig**: die Bar-Differenz
   kann dann normal negativ sein, das ist kein Alarmsignal.
+- Ist die Kassendifferenz ungleich 0, zeigt die Auswertung direkt ein Feld
+  **"Kassendifferenz erklären"** an (schreibt in `Zaehlung.notiz`) — die
+  Erklärung erscheint danach in der Monatsauswertung und im CSV-Export, damit
+  für den Steuerberater nachvollziehbar ist, warum eine Differenz entstanden
+  ist.
 - Einkaufsbelege (`Beleg`/`BelegPosition`) gehen **nicht** in Soll-Kasse,
   Kassendifferenz oder den Bargeld-Vorschlag ein — rein dokumentarisch
   (Wareneinsatz, immer private Einlage von Nick, siehe oben).
@@ -208,12 +216,30 @@ er automatisch erkannt.
 ## Monatsexport (CSV)
 
 `kasse/export.py`, Seite "CSV-Export": erzeugt `JJJJ-MM_Vertrauenskasse.csv`
-(Semikolon-getrennt, UTF-8, deutsches Zahlenformat mit Komma). Eine Zeile pro
-Zählungszeitraum fasst alle Artikel zu einem Sammelposten zusammen (erlaubte
-Vereinfachung laut Vorgabe, da ohnehin einheitlich 19% USt anfallen und sich
-Bar-Zahlungen nicht auf einzelne Artikel aufteilen lassen); jede PayPal-Zahlung
-bekommt eine eigene Zeile mit ihrer Transaktions-ID als Referenz. Optional als
-eine einzige aggregierte Bar-Zeile für den ganzen Monat exportierbar.
+(Semikolon-getrennt, UTF-8, deutsches Zahlenformat mit Komma). Spalten:
+`Datum;Belegnummer;Artikel;Menge;Netto;USt-Satz;USt-Betrag;Brutto;Zahlungsart;Referenz;Notiz`.
+
+- Eine Zeile pro Zählungszeitraum fasst alle Artikel zu einem Sammelposten
+  zusammen (erlaubte Vereinfachung laut Vorgabe, da ohnehin einheitlich 19%
+  USt anfallen und sich Bar-Zahlungen nicht auf einzelne Artikel aufteilen
+  lassen) — die `Notiz`-Spalte übernimmt dabei `Zaehlung.notiz`, also auch
+  eine über die Auswertung erfasste Kassendifferenz-Erklärung. Diese Zeile
+  erscheint **immer** für jede Zählung mit Umsatz, offener Kassendifferenz
+  oder Notiz — auch wenn der Bar-Anteil zufällig 0 € beträgt, damit eine
+  Differenz nie spurlos aus dem Export verschwindet.
+- Jede PayPal-Zahlung bekommt eine eigene Zeile mit ihrer Transaktions-ID als
+  Referenz.
+- Optional als eine einzige aggregierte Bar-Zeile für den ganzen Monat
+  exportierbar.
+- Zusätzlich eine **Kassenbestand-Übersicht** (Zahlungsart `Kassenbestand`,
+  keine Erlös-Zeilen, deshalb Netto/USt leer): Anfangsbestand (gezähltes
+  Bargeld der letzten Zählung vor dem Monat, 0 € falls keine vorhanden), jede
+  einzelne `Kassenbewegung` des Monats (Einlage/Entnahme/fremder
+  Bargeldeingang mit Betrag und Notiz/RG-Nummer als Referenz) und Endbestand
+  (gezähltes Bargeld der letzten Zählung im Monat). So verschwindet z.B. eine
+  Einlage nicht spurlos, und der Kassenbestand lässt sich von Monat zu Monat
+  lückenlos nachrechnen. Hat die letzte Zählung des Monats noch kein
+  bestätigtes Bargeld, fehlt der Endbestand und es gibt eine Warnung.
 
 Der Export markiert den Monat als exportiert (`MonatsExport`) — danach sind
 Korrekturen für diesen Monat nicht mehr rückwirkend möglich (Freigetränke,
@@ -256,10 +282,12 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
   minus verbraucht, komplette Historie) — keine eigene Dateneingabe, rein
   informativ.
 - **Auswertung** (`/auswertung/`): eine Zählung auswählen (Standard: die
-  letzte), zeigt sofort ihr Ergebnis — Soll-Kasse, Zusammensetzung des
-  Bar-Anteils, PayPal-Anteil, Kassendifferenz sowie (rein informativ) den
-  Einkaufswert der erfassten Belege und den Wert ausgegebener Freigetränke.
-  Kein Start/Ende-Picker nötig, jede Zählung steht für sich.
+  letzte), zeigt sofort ihr Ergebnis — Soll-Kassenbestand, Ist-Kassenbestand,
+  Kassendifferenz, Zusammensetzung des Bar-Anteils sowie (rein informativ)
+  den Einkaufswert der erfassten Belege und den Wert ausgegebener
+  Freigetränke. Bei einer Kassendifferenz ungleich 0 direkt ein Feld zum
+  Erklären der Differenz (siehe "Rechenlogik"). Kein Start/Ende-Picker nötig,
+  jede Zählung steht für sich.
 - **Monatsauswertung** (`/auswertung/monat/`): alle Zählungen eines Monats
   plus Gesamtergebnis (Summe aller Einzelergebnisse des Monats).
 - **PayPal-Abgleich** (`/paypal/`): neue Zahlungen erfassen (automatische

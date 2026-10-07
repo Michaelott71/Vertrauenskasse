@@ -11,16 +11,12 @@
 
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="muted">Soll-Kasse</div>
+      <div class="muted">Soll-Kassenbestand</div>
       <div class="value">{{ result.soll_kasse }} €</div>
     </div>
     <div class="summary-item">
-      <div class="muted">davon Bar-Anteil (Ist)</div>
-      <div class="value">{{ result.bar_anteil }} €</div>
-    </div>
-    <div class="summary-item">
-      <div class="muted">davon PayPal-Anteil (Ist)</div>
-      <div class="value">{{ result.paypal_anteil }} €</div>
+      <div class="muted">Ist-Kassenbestand</div>
+      <div class="value">{{ result.ist_kasse }} €</div>
     </div>
     <div class="summary-item">
       <div class="muted">Kassendifferenz{% if result.vorlaeufig %} (vorläufig){% endif %}</div>
@@ -29,6 +25,22 @@
       </div>
     </div>
   </div>
+
+  {% if aktuelle_zaehlung %}
+    {% if result.kassendifferenz %}
+      <form method="post" action="{% url 'kasse:auswertung' %}?zaehlung={{ aktuelle_zaehlung.pk }}" class="differenz-erklaeren">
+        {% csrf_token %}
+        <input type="hidden" name="zaehlung_id" value="{{ aktuelle_zaehlung.pk }}">
+        <label for="id_notiz_erklaerung">
+          ⚠ Kassendifferenz erklären (erscheint in Monatsauswertung und CSV-Export, wichtig für den Steuerberater):
+        </label>
+        <textarea id="id_notiz_erklaerung" name="notiz" rows="2">{{ aktuelle_zaehlung.notiz }}</textarea>
+        <button type="submit" name="notiz_speichern" value="1">Erklärung speichern</button>
+      </form>
+    {% elif aktuelle_zaehlung.notiz %}
+      <p class="muted">Notiz: {{ aktuelle_zaehlung.notiz }}</p>
+    {% endif %}
+  {% endif %}
 </div>
 
 <div class="card">
@@ -83,18 +95,19 @@
       <div class="value">{{ result.bargeld_differenz }} €</div>
     </div>
     <div class="summary-item">
-      <div class="muted">+ Entnahmen</div>
-      <div class="value">{{ result.entnahmen }} €</div>
+      <div class="muted">− Netto aus Kassenbewegungen</div>
+      <div class="value">{{ result.netto_kassenbewegungen }} €</div>
     </div>
     <div class="summary-item">
-      <div class="muted">− Einlagen</div>
-      <div class="value">{{ result.einlagen }} €</div>
-    </div>
-    <div class="summary-item">
-      <div class="muted">− Fremde Bargeldeingänge</div>
-      <div class="value">{{ result.fremde_bargeldeingaenge }} €</div>
+      <div class="muted">= Bar-Anteil aus Getränkeverkauf</div>
+      <div class="value">{{ result.bar_anteil }} €</div>
     </div>
   </div>
+  <p class="muted">
+    Netto aus Kassenbewegungen = Einlagen + fremde Bargeldeingänge − Entnahmen
+    (Geld, das rein kam, minus Geld, das rausgenommen wurde – nichts davon
+    stammt aus Getränkeverkauf, deshalb wird es herausgerechnet).
+  </p>
   {% if result.kassenbewegungen %}
     <div class="table-scroll">
       <table>

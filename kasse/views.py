@@ -261,6 +261,18 @@ def bestand_uebersicht(request):
 def auswertung(request):
     zaehlungen = Zaehlung.objects.all()
 
+    if request.method == "POST" and "notiz_speichern" in request.POST:
+        zaehlung = get_object_or_404(Zaehlung, pk=request.POST.get("zaehlung_id"))
+        zaehlung.notiz = request.POST.get("notiz", "")
+        try:
+            zaehlung.clean()
+        except GesperrterMonatError as exc:
+            messages.error(request, str(exc))
+        else:
+            zaehlung.save()
+            messages.success(request, "Erklärung gespeichert.")
+        return redirect(f"{reverse('kasse:auswertung')}?zaehlung={zaehlung.pk}")
+
     zaehlung_id = request.GET.get("zaehlung")
     if zaehlung_id:
         aktuelle_zaehlung = get_object_or_404(Zaehlung, pk=zaehlung_id)

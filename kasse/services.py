@@ -43,6 +43,7 @@ class Auswertung:
     entnahmen: Decimal = Decimal("0")
     fremde_bargeldeingaenge: Decimal = Decimal("0")
     kassenbewegungen: list = field(default_factory=list)
+    netto_kassenbewegungen: Decimal = Decimal("0")
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
     ist_kasse: Decimal = Decimal("0")
@@ -135,14 +136,17 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         elif bewegung.art == Kassenbewegung.Art.FREMDER_BARGELDEINGANG:
             auswertung.fremde_bargeldeingaenge += bewegung.betrag
 
-    # Bar-Einnahmen(Getraenke) = Bargeld-Differenz + Entnahmen - Einlagen -
-    # fremde Bargeldeingaenge (diese drei Arten von Kassenbewegungen haben mit
-    # dem Getraenkeverkauf nichts zu tun und verzerren sonst die Bar-Differenz).
+    # Netto aus Kassenbewegungen: wie viel vom gezaehlten Bargeld NICHT aus
+    # Getraenkeverkauf stammt (Einlagen/fremde Eingaenge erhoehen das
+    # physische Bargeld, Entnahmen senken es). Wird komplett herausgerechnet,
+    # damit z.B. eine Entnahme nicht wie ein Fehlbetrag aussieht.
+    auswertung.netto_kassenbewegungen = (
+        auswertung.einlagen
+        + auswertung.fremde_bargeldeingaenge
+        - auswertung.entnahmen
+    )
     auswertung.bar_anteil = (
-        auswertung.bargeld_differenz
-        + auswertung.entnahmen
-        - auswertung.einlagen
-        - auswertung.fremde_bargeldeingaenge
+        auswertung.bargeld_differenz - auswertung.netto_kassenbewegungen
     )
 
     # Python-Summe statt SQL-Sum(): SQLite berechnet SUM() ueber Decimal-
@@ -210,6 +214,7 @@ class ZeitraumAuswertung:
     einlagen: Decimal = Decimal("0")
     entnahmen: Decimal = Decimal("0")
     fremde_bargeldeingaenge: Decimal = Decimal("0")
+    netto_kassenbewegungen: Decimal = Decimal("0")
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
     ist_kasse: Decimal = Decimal("0")
@@ -238,6 +243,7 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.einlagen += ergebnis.einlagen
         zeitraum.entnahmen += ergebnis.entnahmen
         zeitraum.fremde_bargeldeingaenge += ergebnis.fremde_bargeldeingaenge
+        zeitraum.netto_kassenbewegungen += ergebnis.netto_kassenbewegungen
         zeitraum.bar_anteil += ergebnis.bar_anteil
         zeitraum.paypal_anteil += ergebnis.paypal_anteil
         zeitraum.vorlaeufig = zeitraum.vorlaeufig or ergebnis.vorlaeufig

@@ -11,8 +11,8 @@ import csv
 import io
 from decimal import ROUND_HALF_UP, Decimal
 
-from .models import MonatsExport, PaypalZahlung, Zaehlung
-from .services import berechne_auswertung, berechne_zeitraum
+from .models import Kassenbewegung, MonatsExport, PaypalZahlung, Zaehlung
+from .services import berechne_auswertung, berechne_zeitraum, vorherige_zaehlung
 
 USt_SATZ = Decimal("19")
 CSV_SPALTEN = [
@@ -26,6 +26,7 @@ CSV_SPALTEN = [
     "Brutto",
     "Zahlungsart",
     "Referenz",
+    "Notiz",
 ]
 
 
@@ -38,7 +39,9 @@ def _datum(d) -> str:
     return d.strftime("%d.%m.%Y")
 
 
-def _brutto_zeile(datum, belegnummer, artikel, menge, brutto, zahlungsart, referenz=""):
+def _brutto_zeile(
+    datum, belegnummer, artikel, menge, brutto, zahlungsart, referenz="", notiz=""
+):
     brutto = Decimal(brutto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     netto = (brutto / (1 + USt_SATZ / 100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     ust_betrag = brutto - netto
@@ -53,6 +56,27 @@ def _brutto_zeile(datum, belegnummer, artikel, menge, brutto, zahlungsart, refer
         "Brutto": _euro(brutto),
         "Zahlungsart": zahlungsart,
         "Referenz": referenz,
+        "Notiz": notiz,
+    }
+
+
+def _kassenbestand_zeile(datum, artikel, betrag, referenz=""):
+    """Zeile fuer die Kassenbestand-Uebersicht (Anfangsbestand, einzelne
+    Kassenbewegungen, Endbestand) - keine Umsatzzeile, deshalb Netto/USt
+    leer und Zahlungsart klar als 'Kassenbestand' markiert, damit sie nicht
+    versehentlich als Erloes mitgezaehlt wird."""
+    return {
+        "Datum": _datum(datum),
+        "Belegnummer": "",
+        "Artikel": artikel,
+        "Menge": "",
+        "Netto": "",
+        "USt-Satz": "",
+        "USt-Betrag": "",
+        "Brutto": _euro(betrag),
+        "Zahlungsart": "Kassenbestand",
+        "Referenz": referenz,
+        "Notiz": "",
     }
 
 
@@ -72,9 +96,12 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
 
     if aggregiert:
         ergebnis = berechne_zeitraum(zaehlungen)
-        if ergebnis is not None and ergebnis.bar_anteil:
+        if ergebnis is not None and (
+            ergebnis.soll_kasse or ergebnis.bar_anteil or ergebnis.kassendifferenz
+        ):
             menge = sum(p.verkauft for p in ergebnis.positionen)
             letzte = zaehlungen[-1]
+            notizen = "; ".join(z.notiz for z in zaehlungen if z.notiz)
             zeilen.append((
                 letzte.datum,
                 _brutto_zeile(
@@ -84,13 +111,19 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
                     menge,
                     ergebnis.bar_anteil,
                     "Bar",
+                    notiz=notizen,
                 ),
             ))
     else:
         for zaehlung in zaehlungen:
             ergebnis = berechne_auswertung(zaehlung)
             menge = sum(p.verkauft for p in ergebnis.positionen)
-            if ergebnis.bar_anteil:
+            if (
+                ergebnis.soll_kasse
+                or ergebnis.bar_anteil
+                or ergebnis.kassendifferenz
+                or zaehlung.notiz
+            ):
                 zeilen.append((
                     zaehlung.datum,
                     _brutto_zeile(
@@ -100,6 +133,7 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
                         menge,
                         ergebnis.bar_anteil,
                         "Bar",
+                        notiz=zaehlung.notiz,
                     ),
                 ))
 
@@ -127,7 +161,57 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
         ))
 
     zeilen.sort(key=lambda paar: paar[0])
-    return [zeile for _, zeile in zeilen], warnungen
+    umsatz_zeilen = [zeile for _, zeile in zeilen]
+
+    kassenbestand_zeilen, kassenbestand_warnungen = _kassenbestand_zeilen(
+        jahr, monat, zaehlungen
+    )
+    warnungen.extend(kassenbestand_warnungen)
+
+    return umsatz_zeilen + kassenbestand_zeilen, warnungen
+
+
+def _kassenbestand_zeilen(jahr, monat, zaehlungen):
+    """Anfangsbestand, einzelne Kassenbewegungen und Endbestand des Monats -
+    keine Erloese, sondern eine Nachvollziehbarkeits-Uebersicht, damit z.B.
+    eine Einlage nicht spurlos verschwindet und der Kassenbestand sich von
+    Monat zu Monat lueckenlos nachrechnen laesst."""
+    zeilen = []
+    warnungen = []
+    if not zaehlungen:
+        return zeilen, warnungen
+
+    erste = zaehlungen[0]
+    letzte = zaehlungen[-1]
+    vorherige = vorherige_zaehlung(erste)
+    anfangsbestand = (
+        vorherige.bargeld_gezaehlt if vorherige and vorherige.bargeld_gezaehlt is not None else Decimal("0")
+    )
+    zeilen.append(_kassenbestand_zeile(erste.datum, "Anfangsbestand", anfangsbestand))
+
+    for bewegung in Kassenbewegung.objects.filter(
+        datum__year=jahr, datum__month=monat
+    ).order_by("datum", "id"):
+        zeilen.append(
+            _kassenbestand_zeile(
+                bewegung.datum,
+                bewegung.get_art_display(),
+                bewegung.betrag,
+                referenz=bewegung.rg_nummer or bewegung.notiz,
+            )
+        )
+
+    if letzte.bargeld_gezaehlt is None:
+        warnungen.append(
+            "Die letzte Zählung des Monats hat noch kein bestätigtes Bargeld - "
+            "der Endbestand in der CSV ist deshalb unvollständig."
+        )
+    else:
+        zeilen.append(
+            _kassenbestand_zeile(letzte.datum, "Endbestand", letzte.bargeld_gezaehlt)
+        )
+
+    return zeilen, warnungen
 
 
 def erzeuge_csv(jahr, monat, aggregiert=False):
