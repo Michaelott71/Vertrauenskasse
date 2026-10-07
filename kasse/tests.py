@@ -9,18 +9,20 @@ from django.urls import reverse
 from . import matching
 from .export import erzeuge_csv, markiere_als_exportiert
 from .models import (
+    Auffuellung,
     Beleg,
     BelegPosition,
     Freigetraenk,
     Getraenk,
     GesperrterMonatError,
+    Kassenbewegung,
     MonatsExport,
     PaypalStichwort,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
 )
-from .services import AuswertungError, berechne_auswertung
+from .services import AuswertungError, berechne_auswertung, lagerbestaende_aktiv
 
 
 def _zaehlung(datum, bargeld):
@@ -82,14 +84,27 @@ class AuswertungTests(TestCase):
             60 * Decimal("1.50") + 30 * Decimal("2.50") + 10 * Decimal("1.00"),
         )
 
-    def test_nachschub_erhoeht_verkauft(self):
+    def test_auffuellung_erhoeht_verkauft(self):
+        Auffuellung.objects.create(getraenk=self.wasser, datum="2026-06-10", anzahl=24)
+        self._ende_bestand(wasser=100)
+
+        ergebnis = berechne_auswertung(self.start, self.ende)
+        wasser_pos = next(p for p in ergebnis.positionen if p.getraenk == self.wasser)
+        self.assertEqual(wasser_pos.aufgefuellt, 24)
+        self.assertEqual(wasser_pos.verkauft, 24)
+
+    def test_einkaufsbeleg_allein_veraendert_verkauft_nicht(self):
+        # Ein Einkauf erhoeht nur den Lagerbestand, nicht den Kuehlschrankbestand,
+        # solange keine Auffuellung stattgefunden hat.
         beleg = Beleg.objects.create(datum="2026-06-10", gesamtbetrag=Decimal("12.00"), haendler="Getraenkemarkt")
         BelegPosition.objects.create(beleg=beleg, getraenk=self.wasser, anzahl=24, einzelpreis=Decimal("0.50"))
         self._ende_bestand(wasser=100)
 
         ergebnis = berechne_auswertung(self.start, self.ende)
         wasser_pos = next(p for p in ergebnis.positionen if p.getraenk == self.wasser)
-        self.assertEqual(wasser_pos.verkauft, 24)
+        self.assertEqual(wasser_pos.aufgefuellt, 0)
+        # 100 Start - 100 Ende = 0 verkauft (keine Auffuellung erfasst)
+        self.assertEqual(wasser_pos.verkauft, 0)
 
     def test_freigetraenke_reduziert_verkauft(self):
         Freigetraenk.objects.create(getraenk=self.wasser, datum="2026-06-05", anzahl=5, kommentar="Team")
@@ -141,6 +156,82 @@ class AuswertungTests(TestCase):
     def test_falsche_reihenfolge_wirft_fehler(self):
         with self.assertRaises(AuswertungError):
             berechne_auswertung(self.ende, self.start)
+
+    def test_entnahme_wird_zur_bargelddifferenz_addiert(self):
+        # Bargeld-Differenz waere sonst 142.50, aber dazwischen wurden 50 EUR
+        # entnommen (z.B. Einnahmen abgeholt) - die muessen trotzdem als
+        # Getraenke-Umsatz zaehlen.
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.ENTNAHME, datum="2026-06-10", betrag=Decimal("50.00")
+        )
+        self._ende_bestand()
+        ergebnis = berechne_auswertung(self.start, self.ende)
+        self.assertEqual(ergebnis.bargeld_differenz, Decimal("142.50"))
+        self.assertEqual(ergebnis.entnahmen, Decimal("50.00"))
+        self.assertEqual(ergebnis.bar_anteil, Decimal("192.50"))
+
+    def test_einlage_wird_von_bargelddifferenz_abgezogen(self):
+        # Eine private Einlage (z.B. Wechselgeld nachgelegt) ist kein Erloes.
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-10", betrag=Decimal("30.00")
+        )
+        self._ende_bestand()
+        ergebnis = berechne_auswertung(self.start, self.ende)
+        self.assertEqual(ergebnis.einlagen, Decimal("30.00"))
+        self.assertEqual(ergebnis.bar_anteil, Decimal("112.50"))
+
+    def test_fremder_bargeldeingang_wird_von_bargelddifferenz_abgezogen(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.FREMDER_BARGELDEINGANG,
+            datum="2026-06-10",
+            betrag=Decimal("20.00"),
+            rg_nummer="RG-2026-010",
+        )
+        self._ende_bestand()
+        ergebnis = berechne_auswertung(self.start, self.ende)
+        self.assertEqual(ergebnis.fremde_bargeldeingaenge, Decimal("20.00"))
+        self.assertEqual(ergebnis.bar_anteil, Decimal("122.50"))
+        self.assertEqual(len(ergebnis.kassenbewegungen), 1)
+
+    def test_kassenbewegung_ausserhalb_zeitraum_zaehlt_nicht(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.ENTNAHME, datum="2026-05-01", betrag=Decimal("50.00")
+        )
+        self._ende_bestand()
+        ergebnis = berechne_auswertung(self.start, self.ende)
+        self.assertEqual(ergebnis.entnahmen, Decimal("0"))
+        self.assertEqual(ergebnis.bar_anteil, Decimal("142.50"))
+
+
+class LagerbestandTests(TestCase):
+    def test_lagerbestand_nur_anfangsbestand(self):
+        Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            anfangsbestand_lager=50,
+        )
+        ergebnis = dict((g.name, b) for g, b in lagerbestaende_aktiv())
+        self.assertEqual(ergebnis["Wasser"], 50)
+
+    def test_einkauf_erhoeht_lagerbestand_auffuellung_reduziert_ihn(self):
+        wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            anfangsbestand_lager=50,
+        )
+        beleg = Beleg.objects.create(datum="2026-06-10", gesamtbetrag=Decimal("12.00"))
+        BelegPosition.objects.create(beleg=beleg, getraenk=wasser, anzahl=24, einzelpreis=Decimal("0.50"))
+        Auffuellung.objects.create(getraenk=wasser, datum="2026-06-11", anzahl=10)
+
+        ergebnis = dict((g.name, b) for g, b in lagerbestaende_aktiv())
+        # 50 Anfang + 24 Einkauf - 10 Auffuellung = 64
+        self.assertEqual(ergebnis["Wasser"], 64)
+
+    def test_inaktive_getraenke_werden_nicht_angezeigt(self):
+        Getraenk.objects.create(
+            name="Altes Getraenk", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            aktiv=False,
+        )
+        namen = [g.name for g, _ in lagerbestaende_aktiv()]
+        self.assertNotIn("Altes Getraenk", namen)
 
 
 class PaypalMatchingTests(TestCase):
@@ -236,6 +327,24 @@ class MonatsExportLockTests(TestCase):
         fg = Freigetraenk(getraenk=self.getraenk, datum=datetime.date(2026, 7, 15), anzahl=1)
         fg.clean()  # keine Exception
 
+    def test_auffuellung_in_exportiertem_monat_wird_blockiert(self):
+        import datetime
+
+        auffuellung = Auffuellung(getraenk=self.getraenk, datum=datetime.date(2026, 6, 15), anzahl=1)
+        with self.assertRaises(GesperrterMonatError):
+            auffuellung.clean()
+
+    def test_kassenbewegung_in_exportiertem_monat_wird_blockiert(self):
+        import datetime
+
+        bewegung = Kassenbewegung(
+            art=Kassenbewegung.Art.ENTNAHME,
+            datum=datetime.date(2026, 6, 15),
+            betrag=Decimal("10.00"),
+        )
+        with self.assertRaises(GesperrterMonatError):
+            bewegung.clean()
+
 
 class CsvExportTests(TestCase):
     def setUp(self):
@@ -318,6 +427,117 @@ class ZaehlungNeuViewTests(TestCase):
             ZaehlungBestand.objects.get(zaehlung=zaehlung, getraenk=self.twix).vollbestand_gezaehlt,
             15,
         )
+
+
+class AuffuellungNeuViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+        self.client.login(username="tester", password="pw12345678")
+
+    def test_post_erstellt_auffuellung(self):
+        response = self.client.post(
+            reverse("kasse:auffuellung_neu"),
+            {"datum": "2026-06-10", f"anzahl_{self.wasser.id}": "15"},
+        )
+        self.assertEqual(response.status_code, 302)
+        auffuellung = Auffuellung.objects.get(getraenk=self.wasser)
+        self.assertEqual(auffuellung.anzahl, 15)
+
+    def test_post_in_exportiertem_monat_wird_blockiert(self):
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        response = self.client.post(
+            reverse("kasse:auffuellung_neu"),
+            {"datum": "2026-06-10", f"anzahl_{self.wasser.id}": "15"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Auffuellung.objects.filter(getraenk=self.wasser).exists())
+
+
+class FreigetraenkNeuViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+        self.client.login(username="tester", password="pw12345678")
+
+    def test_post_erstellt_freigetraenk(self):
+        response = self.client.post(
+            reverse("kasse:freigetraenk_neu"),
+            {
+                "datum": "2026-06-10",
+                "kommentar": "Teamevent",
+                f"anzahl_{self.wasser.id}": "3",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        fg = Freigetraenk.objects.get(getraenk=self.wasser)
+        self.assertEqual(fg.anzahl, 3)
+        self.assertEqual(fg.kommentar, "Teamevent")
+
+    def test_post_in_exportiertem_monat_wird_blockiert(self):
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        response = self.client.post(
+            reverse("kasse:freigetraenk_neu"),
+            {"datum": "2026-06-10", "kommentar": "", f"anzahl_{self.wasser.id}": "3"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Freigetraenk.objects.filter(getraenk=self.wasser).exists())
+
+
+class LagerUebersichtViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+            anfangsbestand_lager=42,
+        )
+        self.client.login(username="tester", password="pw12345678")
+
+    def test_zeigt_lagerbestand(self):
+        response = self.client.get(reverse("kasse:lager_uebersicht"))
+        self.assertContains(response, "Wasser")
+        self.assertContains(response, "42")
+
+
+class KassenbewegungNeuViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.client.login(username="tester", password="pw12345678")
+
+    def test_post_erstellt_kassenbewegung(self):
+        response = self.client.post(
+            reverse("kasse:kassenbewegung_neu"),
+            {
+                "art": Kassenbewegung.Art.EINLAGE,
+                "datum": "2026-06-01",
+                "betrag": "100.00",
+                "rg_nummer": "",
+                "notiz": "Kassenanfangssaldo",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        bewegung = Kassenbewegung.objects.get()
+        self.assertEqual(bewegung.betrag, Decimal("100.00"))
+        self.assertEqual(bewegung.art, Kassenbewegung.Art.EINLAGE)
+
+    def test_post_in_exportiertem_monat_wird_blockiert(self):
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        response = self.client.post(
+            reverse("kasse:kassenbewegung_neu"),
+            {
+                "art": Kassenbewegung.Art.ENTNAHME,
+                "datum": "2026-06-15",
+                "betrag": "10.00",
+                "rg_nummer": "",
+                "notiz": "",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Kassenbewegung.objects.exists())
 
 
 class MonatsauswertungViewTests(TestCase):

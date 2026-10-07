@@ -2,7 +2,7 @@ import calendar
 
 from django import forms
 
-from .models import PaypalZahlung, Zaehlung
+from .models import Kassenbewegung, PaypalZahlung, Zaehlung
 
 
 class ZaehlungMetaForm(forms.ModelForm):
@@ -16,7 +16,55 @@ class ZaehlungMetaForm(forms.ModelForm):
         widgets = {
             "datum": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notiz": forms.Textarea(attrs={"rows": 2}),
-            "bargeld_gezaehlt": forms.NumberInput(attrs={"step": "0.01", "inputmode": "decimal"}),
+            "bargeld_gezaehlt": forms.NumberInput(
+                attrs={
+                    "step": "0.01",
+                    "inputmode": "decimal",
+                    "class": "betrag-input-gross",
+                }
+            ),
+        }
+
+
+class AuffuellungMetaForm(forms.Form):
+    """Datum fuer eine Auffuellungs-Erfassung; die Mengen je Artikel kommen aus
+    den Kacheln und werden im View direkt aus dem POST gelesen."""
+
+    datum = forms.DateField(
+        label="Datum",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+    )
+
+
+class FreigetraenkMetaForm(forms.Form):
+    """Datum/Kommentar fuer eine Freigetraenke-Erfassung; die Mengen je Artikel
+    kommen aus den Kacheln und werden im View direkt aus dem POST gelesen."""
+
+    datum = forms.DateField(
+        label="Datum",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+    )
+    kommentar = forms.CharField(label="Kommentar", required=False, max_length=255)
+
+
+class KassenbewegungForm(forms.ModelForm):
+    art = forms.ChoiceField(
+        label="Art", choices=Kassenbewegung.Art.choices, widget=forms.RadioSelect
+    )
+
+    class Meta:
+        model = Kassenbewegung
+        fields = ["art", "datum", "betrag", "rg_nummer", "notiz"]
+        labels = {"rg_nummer": "RG-Nummer (nur bei fremdem Bargeldeingang)"}
+        widgets = {
+            "datum": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+            "betrag": forms.NumberInput(
+                attrs={
+                    "step": "0.01",
+                    "inputmode": "decimal",
+                    "class": "betrag-input-gross",
+                }
+            ),
         }
 
 

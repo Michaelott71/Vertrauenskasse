@@ -1,5 +1,6 @@
 """Rechenlogik der Vertrauenskasse: Soll/Ist-Kassenvergleich zwischen zwei
-Zaehlungen.
+Zaehlungen, sowie der (nur angezeigte, nicht Teil der Kassenformel)
+Lagerbestand je Getraenk.
 """
 
 from dataclasses import dataclass, field
@@ -8,9 +9,11 @@ from decimal import Decimal
 from django.db.models import Sum
 
 from .models import (
+    Auffuellung,
     BelegPosition,
     Freigetraenk,
     Getraenk,
+    Kassenbewegung,
     PaypalZahlung,
     Zaehlung,
     ZaehlungBestand,
@@ -26,7 +29,7 @@ class GetraenkAuswertung:
     getraenk: Getraenk
     vollbestand_start: int
     vollbestand_ende: int
-    nachschub: int
+    aufgefuellt: int
     freigetraenke: int
     verkauft: int
     verkaufspreis: Decimal
@@ -39,6 +42,11 @@ class Auswertung:
     ende: Zaehlung
     positionen: list = field(default_factory=list)
     soll_kasse: Decimal = Decimal("0")
+    bargeld_differenz: Decimal = Decimal("0")
+    einlagen: Decimal = Decimal("0")
+    entnahmen: Decimal = Decimal("0")
+    fremde_bargeldeingaenge: Decimal = Decimal("0")
+    kassenbewegungen: list = field(default_factory=list)
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
     ist_kasse: Decimal = Decimal("0")
@@ -91,10 +99,10 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
     getraenk_ids = set(start_bestaende) | set(ende_bestaende)
     getraenke = {g.id: g for g in Getraenk.objects.filter(id__in=getraenk_ids)}
 
-    nachschub_je_getraenk = dict(
-        BelegPosition.objects.filter(
-            beleg__datum__gt=start.datum,
-            beleg__datum__lte=ende.datum,
+    aufgefuellt_je_getraenk = dict(
+        Auffuellung.objects.filter(
+            datum__gt=start.datum,
+            datum__lte=ende.datum,
             getraenk_id__in=getraenk_ids,
         )
         .values("getraenk_id")
@@ -121,10 +129,10 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
 
         vollbestand_start = start_b.vollbestand_gezaehlt if start_b else 0
         vollbestand_ende = ende_b.vollbestand_gezaehlt if ende_b else 0
-        nachschub = nachschub_je_getraenk.get(getraenk_id, 0)
+        aufgefuellt = aufgefuellt_je_getraenk.get(getraenk_id, 0)
         freigetraenke = freigetraenke_je_getraenk.get(getraenk_id, 0)
 
-        verkauft = vollbestand_start + nachschub - vollbestand_ende - freigetraenke
+        verkauft = vollbestand_start + aufgefuellt - vollbestand_ende - freigetraenke
         soll_kasse_i = verkauft * getraenk.verkaufspreis
 
         auswertung.positionen.append(
@@ -132,7 +140,7 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
                 getraenk=getraenk,
                 vollbestand_start=vollbestand_start,
                 vollbestand_ende=vollbestand_ende,
-                nachschub=nachschub,
+                aufgefuellt=aufgefuellt,
                 freigetraenke=freigetraenke,
                 verkauft=verkauft,
                 verkaufspreis=getraenk.verkaufspreis,
@@ -141,10 +149,34 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
         )
         auswertung.soll_kasse += soll_kasse_i
 
-    # Bar-Anteil: einfache Differenz des gezaehlten Bargelds zwischen den beiden
-    # Zaehlungen (kein Geldabfluss ausser privaten Einlagen, siehe Beleg-Modell).
-    auswertung.bar_anteil = (ende.bargeld_gezaehlt or Decimal("0")) - (
+    # Bargeld-Differenz: einfache Differenz des gezaehlten Bargelds zwischen den
+    # beiden Zaehlungen, noch ohne Bereinigung um Kassenbewegungen.
+    auswertung.bargeld_differenz = (ende.bargeld_gezaehlt or Decimal("0")) - (
         start.bargeld_gezaehlt or Decimal("0")
+    )
+
+    bewegungen = list(
+        Kassenbewegung.objects.filter(
+            datum__gt=start.datum, datum__lte=ende.datum
+        ).order_by("datum", "id")
+    )
+    auswertung.kassenbewegungen = bewegungen
+    for bewegung in bewegungen:
+        if bewegung.art == Kassenbewegung.Art.EINLAGE:
+            auswertung.einlagen += bewegung.betrag
+        elif bewegung.art == Kassenbewegung.Art.ENTNAHME:
+            auswertung.entnahmen += bewegung.betrag
+        elif bewegung.art == Kassenbewegung.Art.FREMDER_BARGELDEINGANG:
+            auswertung.fremde_bargeldeingaenge += bewegung.betrag
+
+    # Bar-Einnahmen(Getraenke) = Bargeld-Differenz + Entnahmen - Einlagen -
+    # fremde Bargeldeingaenge (diese drei Arten von Kassenbewegungen haben mit
+    # dem Getraenkeverkauf nichts zu tun und verzerren sonst die Bar-Differenz).
+    auswertung.bar_anteil = (
+        auswertung.bargeld_differenz
+        + auswertung.entnahmen
+        - auswertung.einlagen
+        - auswertung.fremde_bargeldeingaenge
     )
 
     paypal_im_zeitraum = PaypalZahlung.objects.filter(
@@ -162,3 +194,33 @@ def berechne_auswertung(start: Zaehlung, ende: Zaehlung) -> Auswertung:
     auswertung.kassendifferenz = auswertung.ist_kasse - auswertung.soll_kasse
 
     return auswertung
+
+
+def lagerbestaende_aktiv():
+    """Aktueller Lagerbestand (NICHT Kuehlschrankbestand) je aktivem Getraenk,
+    nur zur Anzeige (z.B. um zu sehen, wann nachgekauft werden muss):
+
+    Lagerbestand(i) = Anfangsbestand_Lager(i) + Sum(BelegPosition(i)) - Sum(Auffuellung(i))
+    """
+    getraenke = list(Getraenk.objects.filter(aktiv=True).order_by("name"))
+    eingekauft = dict(
+        BelegPosition.objects.filter(getraenk__in=getraenke)
+        .values("getraenk_id")
+        .annotate(summe=Sum("anzahl"))
+        .values_list("getraenk_id", "summe")
+    )
+    aufgefuellt = dict(
+        Auffuellung.objects.filter(getraenk__in=getraenke)
+        .values("getraenk_id")
+        .annotate(summe=Sum("anzahl"))
+        .values_list("getraenk_id", "summe")
+    )
+    ergebnis = []
+    for getraenk in getraenke:
+        bestand = (
+            getraenk.anfangsbestand_lager
+            + eingekauft.get(getraenk.id, 0)
+            - aufgefuellt.get(getraenk.id, 0)
+        )
+        ergebnis.append((getraenk, bestand))
+    return ergebnis

@@ -1,0 +1,47 @@
+{% extends "kasse/base.html" %}
+{% load static %}
+{% block title %}Auffüllen – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Kühlschrank auffüllen</h1>
+  <p class="muted">Ware wird vom Lager in den Kühlschrank geräumt. Das hier
+    erhöht den gezählten Kühlschrankbestand für die Kassenformel – ein
+    Einkaufsbeleg allein tut das nicht.</p>
+
+  {% if keine_artikel %}
+    <div class="card">
+      <p class="muted">Es sind noch keine aktiven Getränke angelegt. Bitte zuerst in der
+        <a href="{% url 'admin:kasse_getraenk_add' %}">Verwaltung</a> ein Getränk anlegen.</p>
+    </div>
+  {% else %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="card">
+        {{ meta_form.as_p }}
+      </div>
+
+      <div class="card">
+        <p class="muted">Aufgefüllte Menge je Artikel zählen:</p>
+        <div class="kachel-grid">
+          {% for getraenk in artikel %}
+            <div class="kachel" data-min="0">
+              <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
+              <div class="kachel-tap" role="button" tabindex="0">
+                <div class="kachel-label">{{ getraenk.name }}</div>
+                <div class="kachel-value">0</div>
+              </div>
+              <input type="hidden" name="anzahl_{{ getraenk.id }}" class="kachel-input" value="0">
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="save-bar">
+        <button type="submit" class="btn-save">Auffüllung speichern</button>
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'kasse/kachel.js' %}"></script>
+{% endblock %}

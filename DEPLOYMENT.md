@@ -1,38 +1,74 @@
 # Deployment mit Docker
 
-Diese Anleitung bringt die Vertrauenskasse per Docker Compose auf einen Server
-(z.B. NAS, VPS, Raspberry Pi mit Docker). Zwei Container:
+Diese Anleitung bringt die Vertrauenskasse per Docker Compose auf einen Server.
+Zwei Container:
 
 - **web**: Django-App via Gunicorn (nicht direkt von aussen erreichbar)
 - **caddy**: Reverse Proxy, terminiert TLS und leitet an `web` weiter
 
-## Geplanter Rollout (Notiz, Stand 2026-07-14)
+## Zentrale Instanz statt lokalem Testlauf (Stand 2026-10-07)
 
-Vereinbarter Plan fuer den Einsatz in der Firma:
+`python manage.py runserver` auf einem einzelnen PC (siehe README) ist nur
+zum **Testen** gedacht: läuft nur, solange das Fenster offen ist, und ist von
+keinem anderen Gerät aus erreichbar. Für den echten Betrieb mit zwei Nutzern,
+die sich einen gemeinsamen, fortlaufenden Datenbestand teilen (Zählungen
+bauen aufeinander auf, VK-Belegnummern dürfen keine Lücken haben), braucht es
+**eine einzige, durchgehend laufende Instanz**, die Handy und PC gleichermassen
+erreichen.
 
-1. **Phase 1 (jetzt):** Lokal auf dem PC laufen lassen, ohne Docker/NAS/Tailscale
-   — siehe "Setup" in der README (`python manage.py runserver`). Reicht zum
-   Testen und ersten produktiven Erfassen von Zaehlungen.
-2. **Phase 2 (spaeter):** Daten (SQLite-Datei + `media/`-Ordner mit Belegen) auf
-   das heimische NAS umziehen, dort per Docker Compose (diese Anleitung)
-   betreiben, und den Fernzugriff ueber **Tailscale** (VPN) statt einer
-   oeffentlichen Domain herstellen — kein Port-Forwarding, NAS bleibt nach
-   aussen unsichtbar. Siehe Abschnitt "Zugriff per Tailscale" unten.
+**Empfehlung: ein kleiner Hetzner-Cloud-Server (CX22, Region Nürnberg/
+Falkenstein, Deutschland/EU) für ca. 4-6 €/Monat**, darauf dieser bereits
+fertige Docker-Compose-Stack, Zugriff von Handy und PC über **Tailscale**
+(siehe eigener Abschnitt unten). Begründung dieser Wahl:
 
-Der Umzug von Phase 1 zu Phase 2 ist unkompliziert, weil die komplette
-Datenbank eine einzelne Datei ist (`db.sqlite3`) — einfach kopieren, siehe
-Abschnitt "Von lokalem PC auf NAS umziehen".
+- **EU-Region**: Hetzner ist ein deutsches Unternehmen, Rechenzentren in
+  Deutschland/Finnland.
+- **Günstig**: ca. 4,49 €/Monat für den Server, ca. +20% für automatische
+  Backups (siehe unten) — zusammen unter 6 €/Monat. (Preise bei Hetzner direkt
+  vor der Buchung prüfen, können sich ändern.)
+- **Ein Konto**: Nick legt nur **ein** Konto beim Hosting-Anbieter (Hetzner)
+  an; Tailscale meldet man sich mit einer bestehenden Identität (Google/
+  Microsoft/E-Mail) an, kein echtes Extra-Konto.
+- **Kein Code-Umbau nötig**: Die App bleibt bei SQLite (eine einzelne Datei)
+  — bei 2 Nutzern und ein paar Zählungen pro Woche gibt es keinen fachlichen
+  Grund, auf eine separate Datenbank wie Postgres umzusteigen. Zentral wird
+  die Sache dadurch, dass nur noch **eine** Instanz läuft, auf die beide
+  Geräte zugreifen — nicht dadurch, welche Datenbank-Engine dahinter steckt.
+- Wiederverwendet die hier bereits vorhandene, fertige Docker/Caddy-Konfiguration
+  unveraendert.
+
+Alternativen (jeder andere Anbieter mit Docker-Unterstuetzung und
+EU-Rechenzentrum funktioniert genauso, z.B. ein beliebiger anderer VPS- oder
+NAS-Anbieter) sind moeglich, aendern an dieser Anleitung aber nichts Grundsaetzliches.
+
+### Server bei Hetzner Cloud anlegen (einmalig, macht Nick)
+
+1. Auf [hetzner.com/cloud](https://www.hetzner.com/cloud) ein Konto anlegen
+   (E-Mail + Zahlungsmethode, als Privatperson, keine Firma nötig).
+2. Neues Projekt anlegen, z.B. "Vertrauenskasse".
+3. "Server hinzufügen" / "Add Server":
+   - **Standort**: Nürnberg oder Falkenstein (Deutschland)
+   - **Image**: Ubuntu (aktuelle LTS-Version)
+   - **Typ**: CX22 (2 vCPU, 4 GB RAM reicht sehr grosszügig für diese App)
+   - **Backups**: Häkchen bei "Backups aktivieren" setzen (automatische
+     wöchentliche Sicherungen, das erledigt die geforderten "automatischen
+     Sicherungen")
+   - SSH-Key oder Passwort nach Hetzners Anleitung einrichten
+   - Server erstellen
+4. Die öffentliche IPv4-Adresse des neuen Servers notieren.
+5. Ab hier übernimmt der Rest dieser Anleitung — entweder tippt man die
+   folgenden Befehle selbst über die **"Console"** im Hetzner-Browser-Dashboard
+   ein (kein zusätzliches Programm nötig, öffnet eine Root-Konsole direkt im
+   Browser), oder man gibt die IP-Adresse an die Person weiter, die den Rest
+   einrichtet.
 
 ## Voraussetzungen
 
-- Docker + Docker Compose Plugin auf dem Zielserver (`docker compose version`)
-- Fuer den Fernzugriff (siehe Phase 2 oben): entweder
-  - **Tailscale** (empfohlen fuer diesen Anwendungsfall): kein Port-Forwarding,
-    keine Domain noetig — siehe eigener Abschnitt unten, oder
-  - eine Domain, die per DNS (A-Record) auf den Server zeigt, plus Port 80 **und**
-    443 offen -> Caddy holt automatisch ein Let's-Encrypt-Zertifikat, oder
-  - nur Zugriff im lokalen Heim-/Firmennetz per IP -> reines HTTP auf Port 80
-    (kein eigenes Zertifikat noetig)
+- Docker + Docker Compose Plugin auf dem Zielserver (`docker compose version`;
+  auf einem frischen Hetzner-Ubuntu-Server: `curl -fsSL https://get.docker.com | sh`)
+- Fuer den Fernzugriff: **Tailscale** (empfohlen, siehe eigener Abschnitt
+  unten) — kein Port-Forwarding, keine Domain nötig, der Server bleibt für
+  das übrige Internet unsichtbar.
 
 ## 1. Repository auf den Server bringen
 
@@ -95,43 +131,47 @@ Fragt interaktiv nach Benutzername, E-Mail, Passwort. Danach unter
 Siehe Abschnitt "Getraenke im Admin anlegen" in der README. Ohne mindestens
 ein aktives Getraenk zeigt "Neue Zaehlung erfassen" nur einen Hinweis an.
 
-## Zugriff per Tailscale einrichten (fuer Phase 2)
+## Zugriff per Tailscale einrichten
 
 Statt einer oeffentlichen Domain mit Port-Forwarding: Tailscale baut ein
-privates VPN zwischen deinen Geraeten auf, das NAS bleibt fuer das Internet
-unsichtbar.
+privates VPN zwischen Handy und Server auf, der Server bleibt fuer das
+uebrige Internet unsichtbar.
 
 1. Kostenlosen Account auf [tailscale.com](https://tailscale.com) anlegen
-   (Free-Tier reicht fuer 1-2 Personen locker aus).
-2. Tailscale auf dem NAS installieren:
-   - **Synology**: Paket-Zentrum -> nach "Tailscale" suchen (ab DSM 7.2 offiziell
-     verfuegbar) und installieren. Falls nicht gelistet: als Docker-Container
-     `tailscale/tailscale` in Container Manager laufen lassen.
-   - **QNAP**: App Center -> "Tailscale" installieren (falls verfuegbar), sonst
-     ebenfalls als Docker-Container ueber Container Station.
-   Danach im Tailscale-Client auf dem NAS mit dem Account anmelden.
+   (Free-Tier reicht fuer 1-2 Personen locker aus) — Anmeldung geht auch mit
+   einem bestehenden Google-/Microsoft-Konto, kein neues Passwort noetig.
+2. Tailscale auf dem Server installieren und anmelden:
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   tailscale up
+   ```
+   Der Befehl zeigt einen Link an — im Browser oeffnen und mit dem
+   Tailscale-Account bestaetigen.
 3. Tailscale-App auf dem Handy/Laptop installieren (App Store/Play Store) und
    mit demselben Account anmelden.
 4. Im [Tailscale Admin-Console](https://login.tailscale.com/admin/machines)
-   nachsehen, welchen Namen/welche IP das NAS bekommen hat (z.B.
-   `nas.tailXXXX.ts.net` oder `100.x.x.x`).
+   nachsehen, welchen Namen/welche IP der Server bekommen hat (z.B.
+   `vertrauenskasse.tailXXXX.ts.net` oder `100.x.x.x`).
 5. In `.env`:
-   - `DJANGO_ALLOWED_HOSTS=<tailscale-name-oder-ip-des-nas>`
+   - `DJANGO_ALLOWED_HOSTS=<tailscale-name-oder-ip-des-servers>`
    - `SITE_ADDRESS=:80` (kein oeffentliches Zertifikat noetig — Tailscale
      verschluesselt die Verbindung bereits selbst)
    - `DJANGO_CSRF_TRUSTED_ORIGINS` leer lassen
 6. `docker compose up -d --build`.
 7. Von unterwegs: Tailscale-App auf dem Handy aktivieren, dann im Browser
-   `http://<tailscale-name-des-nas>/` aufrufen — funktioniert wie im Heimnetz.
+   `http://<tailscale-name-des-servers>/` aufrufen — funktioniert wie im
+   Heimnetz, egal wo man gerade ist.
 
-## Von lokalem PC auf NAS umziehen (Phase 1 -> Phase 2)
+## Von lokalem Testlauf auf den zentralen Server umziehen
 
-Wenn die App vorher lokal ohne Docker lief (`python manage.py runserver`):
+Falls vorher schon lokal getestet wurde (`python manage.py runserver`) und
+diese Testdaten tatsaechlich uebernommen werden sollen (meistens nicht noetig
+— einfach auf dem zentralen Server frisch mit `migrate` anfangen reicht):
 
 1. Auf dem PC: App stoppen. `db.sqlite3` und den `media/`-Ordner (falls
    vorhanden, enthaelt hochgeladene Beleg-Scans) aus dem Projektordner
    sichern.
-2. Auf dem NAS: Repository klonen, `.env` gemaess Anleitung oben einrichten
+2. Auf dem Server: Repository klonen, `.env` gemaess Anleitung oben einrichten
    (inkl. Tailscale-Abschnitt), dann normal starten: `docker compose up -d --build`.
 3. `web`-Container kurz anhalten, damit die SQLite-Datei nicht gerade offen
    ist, dann die gesicherten Dateien einspielen und neu starten:
@@ -141,6 +181,10 @@ Wenn die App vorher lokal ohne Docker lief (`python manage.py runserver`):
    docker cp media/. $(docker compose ps -aq web):/app/media/
    docker compose start web
    ```
+
+Ab dem Zeitpunkt, an dem der zentrale Server laeuft, bitte **ausschliesslich**
+diesen fuer echte Zaehlungen benutzen — ein paralleler lokaler Testlauf wuerde
+sonst eigene, mit dem Server kollidierende VK-Belegnummern vergeben.
 
 ## Updates einspielen
 
@@ -152,6 +196,12 @@ docker compose up -d --build
 Migrationen laufen automatisch beim Neustart des `web`-Containers.
 
 ## Backup
+
+Bei Hetzner Cloud mit aktiviertem "Backups"-Haekchen sichert der Anbieter
+bereits automatisch und ohne weiteres Zutun woechentlich den ganzen Server
+(inkl. Datenbank). Zusaetzlich lohnt sich eine eigene, inhaltliche Sicherung
+der SQLite-Datei (unabhaengig vom Hosting-Anbieter, z.B. um sie woanders
+aufzubewahren):
 
 Die SQLite-Datenbank und hochgeladenen Belege liegen in den Docker-Volumes
 `db-data` (`/app/data/db.sqlite3`) und `media-data` (`/app/media/`). Backup

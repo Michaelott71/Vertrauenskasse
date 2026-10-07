@@ -1,10 +1,12 @@
 from django.contrib import admin
 
 from .models import (
+    Auffuellung,
     Beleg,
     BelegPosition,
     Freigetraenk,
     Getraenk,
+    Kassenbewegung,
     MonatsExport,
     PaypalStichwort,
     PaypalZahlung,
@@ -15,7 +17,13 @@ from .models import (
 
 @admin.register(Getraenk)
 class GetraenkAdmin(admin.ModelAdmin):
-    list_display = ("name", "warenpreis", "verkaufspreis", "aktiv")
+    list_display = (
+        "name",
+        "warenpreis",
+        "verkaufspreis",
+        "anfangsbestand_lager",
+        "aktiv",
+    )
     list_filter = ("aktiv",)
     search_fields = ("name",)
 
@@ -47,6 +55,18 @@ class BelegAdmin(admin.ModelAdmin):
 class FreigetraenkAdmin(admin.ModelAdmin):
     list_display = ("datum", "getraenk", "anzahl", "kommentar")
     list_filter = ("getraenk",)
+
+
+@admin.register(Auffuellung)
+class AuffuellungAdmin(admin.ModelAdmin):
+    list_display = ("datum", "getraenk", "anzahl")
+    list_filter = ("getraenk",)
+
+
+@admin.register(Kassenbewegung)
+class KassenbewegungAdmin(admin.ModelAdmin):
+    list_display = ("datum", "art", "betrag", "rg_nummer", "notiz")
+    list_filter = ("art",)
 
 
 @admin.register(PaypalZahlung)

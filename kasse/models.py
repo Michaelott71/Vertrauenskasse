@@ -36,6 +36,11 @@ class Getraenk(models.Model):
     )
     verkaufspreis = models.DecimalField(max_digits=8, decimal_places=2)
     aktiv = models.BooleanField(default=True)
+    anfangsbestand_lager = models.PositiveIntegerField(
+        default=0,
+        help_text="Einmalig beim Start gesetzt: wie viel von diesem Artikel lag "
+        "zu Beginn im Lager (nicht im Kühlschrank)?",
+    )
 
     class Meta:
         ordering = ["name"]
@@ -123,7 +128,37 @@ class ZaehlungBestand(models.Model):
             )
 
 
+class Auffuellung(models.Model):
+    """Ware wird vom Lager in den Kühlschrank geräumt (z.B. "Wasser +15").
+    Nur das hier erhöht den gezählten Kühlschrankbestand in der Verkaufsformel
+    – ein Einkaufsbeleg allein tut das nicht, siehe README."""
+
+    getraenk = models.ForeignKey(
+        Getraenk, on_delete=models.PROTECT, related_name="auffuellungen"
+    )
+    datum = models.DateField()
+    anzahl = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["-datum", "-id"]
+        verbose_name = "Auffüllung"
+        verbose_name_plural = "Auffüllungen"
+
+    def __str__(self):
+        return f"{self.anzahl}x {self.getraenk} aufgefüllt am {self.datum}"
+
+    def clean(self):
+        if self.datum:
+            pruefe_monat_nicht_exportiert(self.datum, "Eine Auffüllung")
+
+
 class Beleg(models.Model):
+    """Einkaufsbeleg. Gilt immer automatisch als private Einlage von Nick –
+    es gibt bewusst kein "Bezahlt von"-Feld, da der Einkauf nie aus der
+    Vertrauenskasse selbst bezahlt wird. Erhöht nur den Lagerbestand
+    (siehe `lagerbestand_aktuell` in services.py), nicht den gezählten
+    Kühlschrankbestand und fließt nicht in die Kassenformel ein."""
+
     datum = models.DateField()
     dateipfad = models.FileField(upload_to="belege/%Y/%m/", blank=True)
     gesamtbetrag = models.DecimalField(max_digits=9, decimal_places=2)
@@ -180,6 +215,45 @@ class Freigetraenk(models.Model):
     def clean(self):
         if self.datum:
             pruefe_monat_nicht_exportiert(self.datum, "Ein nachgetragenes Freigetränk")
+
+
+class Kassenbewegung(models.Model):
+    """Bargeldbewegungen der Kasse ohne Bezug zum Getränkeverkauf: der
+    Kassenanfangssaldo/Wechselgeld (Einlage), Geld das herausgenommen wird
+    (Entnahme), oder fremdes Bargeld, das nichts mit Getränken zu tun hat
+    (z.B. eine bar bezahlte Platzstunde). Fließen nur in die Bar-Einnahmen-
+    Formel ein (siehe services.py), sind aber keine Erlöse und tauchen daher
+    NICHT im CSV-Monatsexport auf."""
+
+    class Art(models.TextChoices):
+        EINLAGE = "einlage", "Einlage (Privateinlage)"
+        ENTNAHME = "entnahme", "Entnahme"
+        FREMDER_BARGELDEINGANG = "fremder_bargeldeingang", "Fremder Bargeldeingang"
+
+    art = models.CharField(max_length=30, choices=Art.choices)
+    datum = models.DateField()
+    betrag = models.DecimalField(max_digits=9, decimal_places=2)
+    rg_nummer = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Nur bei 'Fremder Bargeldeingang': Verweis auf die "
+        "Rechnungsnummer aus dem Rechnungsprogramm (keine Texterkennung in "
+        "dieser Version – die Vertrauenskasse erstellt selbst keine Rechnungen "
+        "und vergibt nur ihre eigenen VK-Nummern).",
+    )
+    notiz = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-datum", "-id"]
+        verbose_name = "Kassenbewegung"
+        verbose_name_plural = "Kassenbewegungen"
+
+    def __str__(self):
+        return f"{self.get_art_display()}: {self.betrag} EUR am {self.datum}"
+
+    def clean(self):
+        if self.datum:
+            pruefe_monat_nicht_exportiert(self.datum, "Eine Kassenbewegung")
 
 
 class PaypalZahlung(models.Model):

@@ -34,15 +34,59 @@
 </div>
 
 <div class="card">
+  <h2>Wie sich der Bar-Anteil zusammensetzt</h2>
+  <div class="summary-grid">
+    <div class="summary-item">
+      <div class="muted">Bargeld-Differenz (gezählt)</div>
+      <div class="value">{{ result.bargeld_differenz }} €</div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">+ Entnahmen</div>
+      <div class="value">{{ result.entnahmen }} €</div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">− Einlagen</div>
+      <div class="value">{{ result.einlagen }} €</div>
+    </div>
+    <div class="summary-item">
+      <div class="muted">− Fremde Bargeldeingänge</div>
+      <div class="value">{{ result.fremde_bargeldeingaenge }} €</div>
+    </div>
+  </div>
+  {% if result.kassenbewegungen %}
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Datum</th><th>Art</th><th>Betrag</th><th>RG-Nummer</th><th>Notiz</th></tr>
+        </thead>
+        <tbody>
+          {% for b in result.kassenbewegungen %}
+            <tr>
+              <td>{{ b.datum }}</td>
+              <td>{{ b.get_art_display }}</td>
+              <td>{{ b.betrag }} €</td>
+              <td>{{ b.rg_nummer|default:"–" }}</td>
+              <td>{{ b.notiz|default:"–" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">Keine Kassenbewegungen in diesem Zeitraum.</p>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>Details je Artikel</h2>
   <div class="table-scroll">
     <table>
       <thead>
         <tr>
           <th>Getränk</th>
-          <th>Voll Start</th>
-          <th>Nachschub</th>
-          <th>Voll Ende</th>
+          <th>Kühlschrank Start</th>
+          <th>Aufgefüllt</th>
+          <th>Kühlschrank Ende</th>
           <th>Frei</th>
           <th>Verkauft</th>
           <th>Preis</th>
@@ -54,7 +98,7 @@
           <tr>
             <td>{{ p.getraenk.name }}</td>
             <td>{{ p.vollbestand_start }}</td>
-            <td>{{ p.nachschub }}</td>
+            <td>{{ p.aufgefuellt }}</td>
             <td>{{ p.vollbestand_ende }}</td>
             <td>{{ p.freigetraenke }}</td>
             <td>{{ p.verkauft }}</td>
