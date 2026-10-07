@@ -231,6 +231,13 @@ def auswertung(request):
     result = None
     error = None
 
+    if zaehlungen.count() < 2:
+        return render(
+            request,
+            "kasse/auswertung.html",
+            {"zu_wenig_zaehlungen": True},
+        )
+
     start_id = request.GET.get("start")
     ende_id = request.GET.get("ende")
 

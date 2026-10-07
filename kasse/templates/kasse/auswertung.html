@@ -2,6 +2,16 @@
 {% block title %}Auswertung – Vertrauenskasse{% endblock %}
 {% block content %}
   <h1>Auswertung</h1>
+
+  {% if zu_wenig_zaehlungen %}
+    <div class="card">
+      <p>Dafür brauchst du mindestens <strong>zwei</strong> Zählungen: eine
+        Auswertung zeigt immer, was zwischen zwei Zählungen verkauft wurde.</p>
+      <p class="muted">Lege zuerst eine zweite Zählung an, dann kannst du hier
+        die Auswertung zwischen zwei beliebigen Zählungen ansehen.</p>
+      <a class="btn" href="{% url 'kasse:zaehlung_neu' %}">Neue Zählung erfassen</a>
+    </div>
+  {% else %}
   <p class="muted"><a href="{% url 'kasse:monatsauswertung' %}">Zur Monatsauswertung</a></p>
 
   <div class="card">
@@ -19,5 +29,6 @@
 
   {% if result %}
     {% include "kasse/_auswertung_ergebnis.html" %}
+  {% endif %}
   {% endif %}
 {% endblock %}

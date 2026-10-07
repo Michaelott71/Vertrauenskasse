@@ -540,6 +540,30 @@ class KassenbewegungNeuViewTests(TestCase):
         self.assertFalse(Kassenbewegung.objects.exists())
 
 
+class AuswertungViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.client.login(username="tester", password="pw12345678")
+
+    def test_zeigt_freundlichen_hinweis_ohne_zaehlungen(self):
+        response = self.client.get(reverse("kasse:auswertung"))
+        self.assertContains(response, "mindestens")
+        self.assertContains(response, "zwei")
+        self.assertNotContains(response, "dürfen nicht identisch sein")
+
+    def test_zeigt_freundlichen_hinweis_bei_nur_einer_zaehlung(self):
+        _zaehlung("2026-06-01", "0")
+        response = self.client.get(reverse("kasse:auswertung"))
+        self.assertContains(response, "mindestens")
+        self.assertNotContains(response, "dürfen nicht identisch sein")
+
+    def test_zeigt_formular_ab_zwei_zaehlungen(self):
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-15", "0")
+        response = self.client.get(reverse("kasse:auswertung"))
+        self.assertContains(response, "Start-Zählung")
+
+
 class MonatsauswertungViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="pw12345678")
