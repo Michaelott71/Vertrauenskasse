@@ -11,17 +11,28 @@
     </form>
   </div>
 
+  {% if bereits_exportiert %}
+    <div class="card">
+      <p class="muted">
+        Dieser Monat wurde bereits als CSV exportiert. Korrekturen (z.B. nachträgliche
+        Freigetränke) sind für diesen Monat nicht mehr rückwirkend möglich, sondern
+        werden als Vermerk im aktuellen Monat erfasst.
+      </p>
+    </div>
+  {% endif %}
+
   <div class="card">
-    <h2>Zaehlungen im {{ monat_start|date:"F Y" }}</h2>
+    <h2>Zählungen im {{ monat_start|date:"F Y" }}</h2>
     {% if zaehlungen %}
       <div class="table-scroll">
         <table>
           <thead>
-            <tr><th>Datum</th><th>Notiz</th><th>Bargeld</th><th></th></tr>
+            <tr><th>Belegnummer</th><th>Datum</th><th>Notiz</th><th>Bargeld</th><th></th></tr>
           </thead>
           <tbody>
             {% for z in zaehlungen %}
               <tr>
+                <td>{{ z.belegnummer }}</td>
                 <td>{{ z.datum }}</td>
                 <td>{{ z.notiz|default:"–" }}</td>
                 <td>{% if z.bargeld_gezaehlt is not None %}{{ z.bargeld_gezaehlt }} €{% else %}–{% endif %}</td>
@@ -36,7 +47,7 @@
         </table>
       </div>
     {% else %}
-      <p class="muted">Keine Zaehlungen in diesem Monat.</p>
+      <p class="muted">Keine Zählungen in diesem Monat.</p>
     {% endif %}
   </div>
 

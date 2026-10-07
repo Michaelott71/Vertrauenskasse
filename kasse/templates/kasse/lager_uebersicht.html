@@ -1,0 +1,31 @@
+{% extends "kasse/base.html" %}
+{% block title %}Lager – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Lager-Übersicht</h1>
+  <p class="muted">Lagerbestand = Anfangsbestand Lager + eingekaufte Menge
+    (laut Belegen) − bereits in den Kühlschrank aufgefüllte Menge. Nur zur
+    Anzeige, damit man sieht, wann nachgekauft werden muss – fließt nicht in
+    die Kassenformel ein.</p>
+
+  <div class="card">
+    {% if lagerbestaende %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Getränk</th><th>Lagerbestand</th></tr>
+          </thead>
+          <tbody>
+            {% for getraenk, bestand in lagerbestaende %}
+              <tr>
+                <td>{{ getraenk.name }}</td>
+                <td class="{% if bestand < 0 %}negative{% endif %}">{{ bestand }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Keine aktiven Getränke angelegt.</p>
+    {% endif %}
+  </div>
+{% endblock %}

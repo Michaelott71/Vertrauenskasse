@@ -1,0 +1,47 @@
+{% extends "kasse/base.html" %}
+{% block title %}PayPal-Abgleich – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>PayPal-Abgleich</h1>
+  <p class="muted">
+    PayPal wird nicht bei jeder Zählung, sondern einmal monatlich abgeglichen.
+    Neue Zahlungen unten erfassen (z.B. aus dem PayPal-Export abgetippt); die
+    automatische Zuordnung läuft direkt beim Speichern. Alles Uneindeutige
+    landet auf der Klärungsliste und muss hier einmal manuell entschieden werden.
+  </p>
+
+  <div class="card">
+    <h2>Neue PayPal-Zahlung erfassen</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="formular" value="neu">
+      {{ neu_form.as_p }}
+      <button type="submit">Erfassen &amp; automatisch zuordnen</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Klärungsliste ({{ offene|length }} offen)</h2>
+    {% if offene %}
+      {% for zahlung in offene %}
+        <div class="klaerung-item">
+          <div>
+            <strong>{{ zahlung.datum }} — {{ zahlung.betrag }} €</strong><br>
+            <span class="muted">{{ zahlung.verwendungszweck|default:"(kein Verwendungszweck)" }}</span><br>
+            <span class="muted">Grund: {{ zahlung.zuordnungsgrund }}</span>
+          </div>
+          <form method="post" class="klaerung-form">
+            {% csrf_token %}
+            <input type="hidden" name="formular" value="entscheidung">
+            <input type="hidden" name="zahlung_id" value="{{ zahlung.id }}">
+            <label><input type="radio" name="entscheidung" value="ja" required> Vertrauenskasse</label>
+            <label><input type="radio" name="entscheidung" value="nein" required> keine Vertrauenskasse</label>
+            <input type="text" name="kommentar" placeholder="Kommentar (optional)">
+            <button type="submit">Entscheiden</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">Keine offenen PayPal-Zahlungen.</p>
+    {% endif %}
+  </div>
+{% endblock %}

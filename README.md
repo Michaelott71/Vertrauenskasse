@@ -1,17 +1,27 @@
 # Vertrauenskasse
 
-Modul zur Verwaltung der Getraenke-Vertrauenskasse im Betrieb: Bestandszaehlungen,
-Belege, Freigetraenke und PayPal-Zahlungen erfassen und automatisch Soll/Ist-Kasse
-sowie den Leergut-Abgleich berechnen.
+Modul zur Verwaltung der Getränke-/Snack-Vertrauenskasse: Bestandszählungen im
+Kassensystem-Stil, Belege, Freigetränke und PayPal-Zahlungen erfassen und
+automatisch Soll/Ist-Kasse berechnen.
+
+Pfand ist bewusst **kein** Teil der Geschäftslogik: Der Einkauf wird immer
+privat bezahlt (nie aus der Firmenkasse), und die Pfand-Erstattung beim
+Getränkemarkt nimmt Nick ebenfalls privat entgegen — beides läuft komplett
+außerhalb der Vertrauenskasse, die selbst nie Pfand auszahlt.
 
 ## Tech-Stack
 
-- **Django 5** (Python) mit **SQLite** als Datenbank
-- Django Admin fuer die Verwaltung von Getraenken, Belegen, Freigetraenken und
-  PayPal-Zahlungen
-- Eigene, mobile-optimierte Views/Templates fuer die zwei Kernworkflows:
-  Zaehlung erfassen und Auswertung ansehen
-- Kein Build-Tooling, keine externen JS/CSS-CDN-Abhaengigkeiten (funktioniert offline)
+- **Django 5** (Python) mit **SQLite** als Datenbank — ein einzelner, kleiner
+  Prozess ohne separaten Frontend-Build, läuft problemlos auf einem NAS/Raspberry Pi.
+- Django Admin für die Verwaltung von Getränken, Belegen, Freigetränken,
+  PayPal-Zahlungen und Stichwörtern.
+- Eigene, mobile-optimierte Views/Templates für die Kernworkflows: Zählung
+  erfassen, Auswertung ansehen, PayPal-Abgleich, CSV-Export.
+- Die Zählung selbst ist **kein Formular**, sondern eine Kachel-Oberfläche
+  (reines Vanilla-JS, kein Framework, kein Build-Tooling): antippen = +1,
+  Minus-Symbol oder langes Drücken = -1, Zählstand live sichtbar.
+- Kein Build-Tooling, keine externen JS/CSS-CDN-Abhängigkeiten (funktioniert offline).
+- Zwei gleichberechtigte Nutzer teilen sich einen Login (kein Rechtesystem nötig).
 
 ## Setup
 
@@ -25,121 +35,191 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Anschliessend im Browser unter `http://127.0.0.1:8000/` anmelden.
+Anschliessend im Browser unter `http://127.0.0.1:8000/` anmelden. Getränke
+zuerst im Admin-Bereich (`/admin/`) anlegen.
+
+**Wichtig**: Das ist nur der lokale Testlauf auf einem einzelnen Rechner —
+für den echten Betrieb mit zwei Nutzern braucht es eine zentrale, durchgehend
+laufende Instanz, die Handy und PC gleichermassen erreichen (sonst entstehen
+getrennte Datenstände und doppelte VK-Belegnummern). Siehe Abschnitt
+"Zentrale Instanz statt lokalem Testlauf" in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Datenmodell
 
-7 Tabellen (App `kasse`, siehe `kasse/models.py`):
+App `kasse`, siehe `kasse/models.py`, plus einige kleine Zusatztabellen/-felder,
+die für die geforderte Rechen-/Zuordnungslogik technisch nötig sind (siehe
+"Abweichungen" unten):
 
 | Tabelle | Zweck |
 |---|---|
-| `Getraenk` | Stammdaten: Name, Warenpreis, Pfand, Verkaufspreis, aktiv |
-| `Zaehlung` | Ein Zaehlungszeitpunkt (Datum, Notiz) |
-| `ZaehlungBestand` | Gezaehlter Voll-/Leergut-Bestand je Getraenk zu einer Zaehlung |
-| `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Haendler) |
-| `BelegPosition` | Positionen eines Belegs je Getraenk (Nachschub) |
-| `Freigetraenk` | Freigetraenke je Getraenk (reduzieren den Verkauf) |
-| `PaypalZahlung` | PayPal-Zahlungen, optional einer Zaehlung zugeordnet und als Getraenke-Zahlung markiert |
-| `DifferenzZuordnung` | Ordnet die Kassendifferenz einer Zaehlung Kategorien zu (Diebstahl, Nicht bezahlt, Freigetraenke, Veranstaltung) |
+| `Getraenk` | Artikel: Name, Warenpreis (ohne Pfand), Verkaufspreis, Anfangsbestand Lager, aktiv |
+| `Zaehlung` | Ein Zählungszeitpunkt (Datum, Notiz, Bargeld gezählt, Belegnummer `VK-JJJJ-MM-NN`) |
+| `ZaehlungBestand` | Gezählter **Kühlschrankbestand** je Artikel zu einer Zählung |
+| `Auffuellung` | Ware wird vom Lager in den Kühlschrank geräumt (Datum, Artikel, Anzahl) — erhöht den Kühlschrankbestand in der Kassenformel |
+| `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Händler) — gilt immer automatisch als private Einlage, erhöht nur den **Lagerbestand** |
+| `BelegPosition` | Positionen eines Belegs je Getränk (Einkaufsmenge), Einzelpreis nur der Warenpreis ohne Pfand-Anteil |
+| `Freigetraenk` | Freigetränke je Getränk, auch rückwirkend nachtragbar (bis zum CSV-Export des Monats) |
+| `Kassenbewegung` | Bargeldbewegung ohne Bezug zum Getränkeverkauf: Einlage, Entnahme oder fremder Bargeldeingang |
+| `PaypalZahlung` | PayPal-Zahlungen mit automatischer Zuordnung zur Vertrauenskasse |
 
-**Abweichungen vom urspruenglich vorgegebenen Schema:**
+**Lager vs. Kühlschrank**: Ein Einkaufsbeleg erhöht nur den Lagerbestand, nicht
+den Kühlschrankbestand. Erst eine `Auffuellung` (Ware wird vom Lager in den
+Kühlschrank geräumt) erhöht den gezählten Bestand, der in die Kassenformel
+eingeht. Gezählt wird bei jeder Zählung ausschließlich der Kühlschrankbestand
+(`ZaehlungBestand`). Der Lagerbestand wird nur berechnet und angezeigt
+(`/lager/`), damit erkennbar ist, wann nachgekauft werden muss — er fließt
+nicht in die Kassenformel ein:
 
-- `Zaehlung` hat zusaetzlich die Felder `bargeld_gezaehlt` und
-  `bargeld_entnommen`. Ohne `bargeld_gezaehlt` liesse sich die geforderte
-  Formel `Ist-Kasse = gezaehltes Bargeld + manuell markierte
-  PayPal-Zahlungen` nicht berechnen. `bargeld_entnommen` wurde noetig, weil
-  die Kasse in der Praxis manchmal bei einer Zaehlung geleert wird (Geld
-  entnommen) und manchmal nicht — siehe Rechenlogik unten.
-- `DifferenzZuordnung` ist eine komplett neue Tabelle (siehe "Differenz
-  zuordnen" unten).
+`Lagerbestand(i) = Anfangsbestand_Lager(i) + Σ BelegPosition(i) − Σ Auffuellung(i)`
+
+Pfand ist absichtlich **nicht** Teil des Datenmodells: Einkauf und
+Pfand-Rückerstattung laufen immer privat und komplett außerhalb der Kasse,
+es gibt keinen Rückgabemechanismus an Kunden.
+
+**Abweichungen vom ursprünglich vorgegebenen Schema** (technisch notwendig,
+keine neuen fachlichen Konzepte):
+
+- `Zaehlung.bargeld_gezaehlt`: Ohne dieses Feld liesse sich die geforderte
+  Formel `Ist-Kasse = gezähltes Bargeld + PayPal-Zahlungen` nicht berechnen.
+- `PaypalZahlung.verwendungszweck`: Rohtext-Eingabe für die automatische
+  Zuordnung (fester Verwendungszweck, RG-Nummer, Stichwortliste). Ohne dieses
+  Feld gäbe es nichts, worauf die Zuordnungsregeln prüfen könnten.
+- `PaypalStichwort` (neue Tabelle): speichert die geforderte "erweiterbare
+  Stichwortliste" inkl. automatisch gelernter, wiederkehrender Betreffs.
+- `MonatsExport` (neue Tabelle): merkt sich, welche Monate bereits als CSV
+  exportiert wurden, um die Regel "Korrekturen nur bis zum Export rückwirkend
+  möglich" technisch durchzusetzen (gilt auch für `Auffuellung` und
+  `Kassenbewegung`, nicht nur für `Freigetraenk`).
 
 ## Rechenlogik
 
-Die komplette Berechnung steckt in `kasse/services.py`
-(`berechne_auswertung(start, ende)`), fuer jedes Getraenk zwischen zwei
-Zaehlungen `start` und `ende` — auch wenn dazwischen weitere Zaehlungen
-liegen (z.B. bei der Monatsauswertung):
+Komplett in `kasse/services.py` (`berechne_auswertung(start, ende)`), für
+jeden Artikel zwischen zwei Zählungen — auch wenn dazwischen weitere
+Zählungen liegen (z.B. bei der Monatsauswertung). Bezug ist dabei immer der
+**Kühlschrankbestand** (`ZaehlungBestand`), nicht der Lagerbestand:
 
-- `Verkauft = Vollbestand_Start + Nachschub − Vollbestand_Ende − Freigetraenke`
-  (Nachschub = Summe `BelegPosition.anzahl` aus Belegen mit Datum im Zeitraum
-  `(start.datum, ende.datum]`; Freigetraenke analog)
-- `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)`
-- `Bargeld-Einnahmen = bargeld_gezaehlt(ende) − (bargeld_gezaehlt(start) − bargeld_entnommen(start)) + Σ bargeld_entnommen(z)`
-  fuer alle Zaehlungen `z` zeitlich zwischen `start` und `ende`. Damit
-  funktioniert die Rechnung unabhaengig davon, ob die Kasse zwischendurch
-  geleert wurde oder nicht:
-  - Wird die Kasse bei jeder Zaehlung komplett geleert (`bargeld_entnommen`
-    = `bargeld_gezaehlt`), ergibt das denselben Wert wie einfach
-    `bargeld_gezaehlt(ende)`.
-  - Bleibt das Geld einfach liegen (`bargeld_entnommen` = 0), ergibt das
-    `bargeld_gezaehlt(ende) − bargeld_gezaehlt(start)`.
-  - Mischformen (mal geleert, mal nicht) werden korrekt anteilig verrechnet.
-- `Ist-Kasse = Bargeld-Einnahmen + Σ PayPal-Zahlungen mit ist_Getraenke_Zahlung=True`,
-  fuer alle Zaehlungen zeitlich nach `start` bis inkl. `ende`
-- `Kassendifferenz = Ist-Kasse − Soll-Kasse` (keine Rundungstoleranz)
-- `Rueckgabe_an_Getraenkemarkt(i)` wird ebenfalls ueber alle Zaehlungen
-  zwischen `start` (exklusiv) und `ende` (inklusiv) aufsummiert, nicht nur
-  bei `ende` gezaehlt
-- `Erwartetes Leergut(i) = Leergut_Start(i) + Verkauft(i) − Rueckgabe_an_Getraenkemarkt(i)`
-- `Leergut-Differenz(i) = Leergut_Ende(i) − Erwartetes Leergut(i)`
-  (negativ = Schwund/Pfandverlust, positiv = Fund/Fremdleergut)
+- `Verkauft(i) = Kühlschrankbestand_Start(i) + Aufgefüllt(i) − Kühlschrankbestand_Ende(i) − Freigetränke(i)`
+- `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)` (Verkaufspreis ohne Pfand-Anteil)
+- `Bargeld-Differenz = bargeld_gezählt(Ende) − bargeld_gezählt(Start)`
+- `Bar-Anteil (Getränke) = Bargeld-Differenz + Entnahmen − Einlagen − fremde Bargeldeingänge`
+  (die drei `Kassenbewegung`-Arten im Zeitraum, siehe unten — ohne diese
+  Bereinigung würde z.B. eine Entnahme wie ein Fehlbetrag aussehen, eine private
+  Einlage oder ein fremder Bargeldeingang hingegen wie zusätzlicher Getränkeumsatz)
+- `PayPal-Anteil = Σ PayPal-Zahlungen mit ist_Getränke_Zahlung=True im Zeitraum`
+- `Ist-Kasse = Bar-Anteil + PayPal-Anteil`
+- `Kassendifferenz = Ist-Kasse − Soll-Kasse` (keine Rundungstoleranz, exakt ausgewiesen)
+- Anzeige in der Auswertung: zuerst Soll-Kasse, dann die Zusammensetzung des
+  Bar-Anteils (Bargeld-Differenz, Entnahmen, Einlagen, fremde Bargeldeingänge)
+  und der PayPal-Anteil, erst danach die Kassendifferenz — damit online
+  bezahlte Getränke oder eine Bargeld-Entnahme nie wie ein Fehlbetrag aussehen.
+- Solange im Zeitraum noch ungeklärte PayPal-Zahlungen liegen (Klärungsliste),
+  markiert die Auswertung das Ergebnis als **vorläufig**: die Bar-Differenz
+  kann dann normal negativ sein, das ist kein Alarmsignal.
+- Einkaufsbelege (`BelegPosition`) gehen **nicht** in diese Formel ein — nur
+  `Auffuellung` erhöht den für "Verkauft" relevanten Bestand.
+- Bei der allerersten Zählung ist `bargeld_gezählt(Start)` implizit 0 (noch
+  keine vorherige Zählung) — der Kassenanfangssaldo wird dafür einmalig vorher
+  als `Kassenbewegung` vom Typ "Einlage" gebucht.
 
-Getestet in `kasse/tests.py` (`python manage.py test`), inkl. Szenarien mit
-mehreren Zaehlungen im selben Auswertungszeitraum.
+Es gibt bewusst **keine** Leergut-/Pfand-Differenzrechnung: Einkauf und
+Pfand-Rückgabe sind private Angelegenheiten von Nick und fließen nie durch
+die Vertrauenskasse.
+
+### Kassenbewegungen (Einlage / Entnahme / fremder Bargeldeingang)
+
+Alle Bargeldbewegungen ohne Bezug zum Getränkeverkauf werden als
+`Kassenbewegung` erfasst (Seite "Kassenbewegung", `/kassenbewegung/neu/` —
+zugleich die "Vertrauenskassenliste", ein chronologisches Journal aller
+Bewegungen):
+
+- **Einlage**: z.B. der Kassenanfangssaldo/Wechselgeld. Kein Erlös.
+- **Entnahme**: Geld, das aus der Kasse genommen wird (z.B. Einnahmen
+  abgeholt). Ohne diese Buchung würde es wie ein Fehlbetrag aussehen.
+- **Fremder Bargeldeingang**: z.B. jemand zahlt eine Platzstunde bar. Verweis
+  auf die RG-Nummer aus dem (separaten) Rechnungsprogramm als Freitext — keine
+  Texterkennung in dieser Version. Die Vertrauenskasse erstellt selbst keine
+  Rechnungen und vergibt ausschließlich ihre eigenen VK-Nummern.
+
+Kassenbewegungen sind keine Erlöse und erscheinen daher **nicht** im
+CSV-Monatsexport, wohl aber im Zählprotokoll (Auswertung je Zeitraum) und in
+der Vertrauenskassenliste. Rückwirkende Korrekturen sind wie bei Freigetränken
+nur bis zum CSV-Export des betroffenen Monats möglich.
+
+Getestet in `kasse/tests.py` (`python manage.py test`).
+
+## PayPal-Zuordnung
+
+Automatisiert in `kasse/matching.py`, in dieser Reihenfolge:
+
+1. Fester Verwendungszweck "Getränke Golfbox" → Vertrauenskasse
+2. RG-Nummer im Betreff → keine Vertrauenskasse (Ausgangsrechnung)
+3. Stichwortliste (`PaypalStichwort`, erweiterbar über den Admin-Bereich oder
+   automatisch beim manuellen Entscheiden) → Vertrauenskasse
+4. Betragsregel: Betrag passt zu einem Getränke-/Snackpreis oder einem
+   Vielfachen davon → "vermutlich", bleibt aber auf der Klärungsliste
+5. Alles andere → Klärungsliste, einmal monatlich manuell entscheiden (Seite
+   "PayPal-Abgleich")
+
+Wird eine Zahlung dort manuell als Vertrauenskasse bestätigt, wird sie
+anhand ihres Datums der passenden Zählung zugeordnet und ihr Betreff als
+neues Stichwort gemerkt — taucht der gleiche Betreff später erneut auf, wird
+er automatisch erkannt.
+
+## Monatsexport (CSV)
+
+`kasse/export.py`, Seite "CSV-Export": erzeugt `JJJJ-MM_Vertrauenskasse.csv`
+(Semikolon-getrennt, UTF-8, deutsches Zahlenformat mit Komma). Eine Zeile pro
+Zählungszeitraum fasst alle Artikel zu einem Sammelposten zusammen (erlaubte
+Vereinfachung laut Vorgabe, da ohnehin einheitlich 19% USt anfallen und sich
+Bar-Zahlungen nicht auf einzelne Artikel aufteilen lassen); jede PayPal-Zahlung
+bekommt eine eigene Zeile mit ihrer Transaktions-ID als Referenz. Optional als
+eine einzige aggregierte Bar-Zeile für den ganzen Monat exportierbar.
+
+Der Export markiert den Monat als exportiert (`MonatsExport`) — danach sind
+Korrekturen für diesen Monat nicht mehr rückwirkend möglich (Freigetränke,
+Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
 
 ## Workflows
 
-- **Neue Zaehlung** (`/zaehlung/neu/`): Datum, Notiz, gezaehltes Bargeld,
-  entnommenes Bargeld sowie Voll-/Leergut-Bestand je aktivem Getraenk in
-  einem mobilfreundlichen Formular erfassen.
-- **Auswertung** (`/auswertung/`): Start- und End-Zaehlung auswaehlen, Soll/Ist-Kasse,
-  Kassendifferenz und Leergut-Differenz je Getraenk sowie in Summe ansehen.
-- **Monatsauswertung** (`/auswertung/monat/`): Monat auswaehlen, alle
-  Zaehlungen des Monats als Liste (mit Link zur Auswertung zur jeweils
-  vorherigen Zaehlung), plus ein Gesamtergebnis fuer den ganzen Monat
-  (erste vs. letzte Zaehlung im Monat).
-- **Differenz zuordnen** (Teil der Auswertungsseite): Die Kassendifferenz
-  einer Zaehlung auf feste Kategorien aufteilen — Diebstahl, Nicht bezahlt,
-  Freigetraenke (nicht erfasst), Veranstaltung inkl. Getraenke. Betrag mit
-  gleichem Vorzeichen wie die Kassendifferenz eingeben. Die Seite zeigt an,
-  wie viel bereits zugeordnet ist und wie viel "Rest offen" bleibt.
-- **Verwaltung** (`/admin/`): Getraenke, Belege (inkl. Positionen), Freigetraenke,
-  PayPal-Zahlungen und Differenz-Zuordnungen pflegen.
+- **Neue Zählung** (`/zaehlung/neu/`): Kachel-Oberfläche wie an einem
+  Kassensystem — eine Kachel pro aktivem Artikel (Kühlschrank-Vollbestand),
+  keine Textfelder. Antippen zählt hoch, Minus-Symbol oder langes Drücken
+  wieder runter, Zählstand live sichtbar.
+- **Auffüllen** (`/auffuellung/neu/`): gleiche Kachel-Bedienung, erfasst wie
+  viel von welchem Artikel vom Lager in den Kühlschrank geräumt wurde.
+- **Freigetränke** (`/freigetraenk/neu/`): gleiche Kachel-Bedienung, Datum
+  frei wählbar (auch rückwirkend, solange der Monat nicht exportiert ist).
+- **Lager** (`/lager/`): reine Übersicht des aktuellen Lagerbestands je
+  Artikel, um zu sehen, wann nachgekauft werden muss.
+- **Kassenbewegung** (`/kassenbewegung/neu/`): Einlage/Entnahme/fremder
+  Bargeldeingang über ein großes Zahlenfeld erfassen, darunter die
+  Vertrauenskassenliste (chronologisches Journal).
+- **Auswertung** (`/auswertung/`): Start- und End-Zählung wählen, Soll-Kasse,
+  Zusammensetzung des Bar-Anteils, PayPal-Anteil und Kassendifferenz.
+- **Monatsauswertung** (`/auswertung/monat/`): alle Zählungen eines Monats
+  plus Gesamtergebnis (erste vs. letzte Zählung im Monat).
+- **PayPal-Abgleich** (`/paypal/`): neue Zahlungen erfassen (automatische
+  Zuordnung läuft sofort) und die Klärungsliste einmal monatlich abarbeiten.
+- **CSV-Export** (`/export/`): Monat auswählen, CSV herunterladen.
+- **Verwaltung** (`/admin/`): Getränke, Belege (inkl. Positionen),
+  Freigetränke, Auffüllungen, Kassenbewegungen, PayPal-Zahlungen und
+  Stichwörter pflegen.
 
-## Getraenke im Admin anlegen
-
-1. Unter `/admin/` anmelden (Superuser-Zugangsdaten).
-2. Im Bereich **Kasse** auf **Getränke** klicken, dann **Getränk hinzufügen**.
-3. Felder ausfuellen:
-   - **Name**: z.B. "Bier 0,33l" — muss eindeutig sein.
-   - **Warenpreis**: Einkaufspreis pro Flasche/Dose (nur informativ, fliesst
-     nicht in die Soll/Ist-Berechnung ein).
-   - **Pfand**: Pfandbetrag pro Einheit (aktuell informativ, nicht Teil der
-     Rechenlogik).
-   - **Verkaufspreis**: Preis, zu dem in der Vertrauenskasse verkauft wird —
-     zentral fuer die Soll-Kasse-Berechnung.
-   - **Aktiv**: Haken setzen. Nur aktive Getraenke tauchen im Formular "Neue
-     Zaehlung erfassen" auf. Ein Getraenk aus dem Sortiment nehmen, ohne die
-     Historie zu verlieren: Haken einfach wieder entfernen statt zu loeschen.
-4. **Speichern**. Das Getraenk erscheint danach in der Zaehlungs-Erfassung.
-
-Zum Loeschen eines Getraenks: nicht empfohlen, wenn bereits Zaehlungen, Belege
-oder Freigetraenke dafuer existieren (diese Datensaetze bleiben durch die
-Datenbank-Constraints erhalten und blockieren das Loeschen). Stattdessen auf
-"Aktiv" = Nein setzen.
+Belege-Upload/OCR ist **nicht** Teil dieser ersten Version (das `Beleg`-Modell
+inkl. Dateiupload existiert bereits für eine spätere Erweiterung).
 
 ## Deployment
 
-Fuer den Produktivbetrieb per Docker Compose (Django + Gunicorn + Caddy als
+Für den Produktivbetrieb per Docker Compose (Django + Gunicorn + Caddy als
 Reverse Proxy mit optionalem automatischem HTTPS) siehe [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Konfiguration (Produktivbetrieb)
 
-Ueber Umgebungsvariablen (siehe `config/settings.py` und `.env.example`):
+Über Umgebungsvariablen (siehe `config/settings.py` und `.env.example`):
 
 - `DJANGO_SECRET_KEY`
 - `DJANGO_DEBUG` (`True`/`False`)
 - `DJANGO_ALLOWED_HOSTS` (kommagetrennt)
-- `DJANGO_CSRF_TRUSTED_ORIGINS` (kommagetrennt, nur bei HTTPS-Domain noetig)
+- `DJANGO_CSRF_TRUSTED_ORIGINS` (kommagetrennt, nur bei HTTPS-Domain nötig)
 - `DJANGO_DB_PATH` (Pfad zur SQLite-Datei, Default: `db.sqlite3` im Projektverzeichnis)
-- `SITE_ADDRESS` (nur Docker/Caddy: Domain fuer automatisches HTTPS oder `:80` fuer reines HTTP)
+- `SITE_ADDRESS` (nur Docker/Caddy: Domain für automatisches HTTPS oder `:80` für reines HTTP)

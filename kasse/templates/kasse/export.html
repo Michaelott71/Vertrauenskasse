@@ -1,0 +1,32 @@
+{% extends "kasse/base.html" %}
+{% block title %}CSV-Export – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Monatsexport (CSV)</h1>
+  <p class="muted">
+    Erzeugt eine <code>JJJJ-MM_Vertrauenskasse.csv</code> (Semikolon-getrennt, UTF-8)
+    für den gewählten Monat. Muss bis zum 10. des Folgemonats erstellt sein.
+    Achtung: nach dem Export gelten Korrekturen für diesen Monat nicht mehr
+    rückwirkend.
+  </p>
+
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit">CSV exportieren</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Bereits exportierte Monate</h2>
+    {% if bereits_exportiert %}
+      <ul>
+        {% for e in bereits_exportiert %}
+          <li>{{ e.monat|stringformat:"02d" }}/{{ e.jahr }} — exportiert am {{ e.exportiert_am|date:"d.m.Y H:i" }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Noch kein Monat exportiert.</p>
+    {% endif %}
+  </div>
+{% endblock %}

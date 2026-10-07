@@ -1,0 +1,47 @@
+{% extends "kasse/base.html" %}
+{% block title %}Kassenbewegung – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Kassenbewegung erfassen</h1>
+  <p class="muted">Für Bargeld, das ohne Getränkeverkauf in die Kasse kommt
+    oder herausgenommen wird: Kassenanfangssaldo/Wechselgeld (Einlage), Geld
+    das entnommen wird (Entnahme), oder fremdes Bargeld wie eine bar bezahlte
+    Platzstunde (Fremder Bargeldeingang). Keine Erlöse – erscheint nicht im
+    CSV-Monatsexport.</p>
+
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <p class="negative">{{ form.non_field_errors }}</p>
+      {% endif %}
+      {{ form.as_p }}
+      <button type="submit">Kassenbewegung speichern</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Vertrauenskassenliste (letzte Kassenbewegungen)</h2>
+    {% if bewegungen %}
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Datum</th><th>Art</th><th>Betrag</th><th>RG-Nummer</th><th>Notiz</th></tr>
+          </thead>
+          <tbody>
+            {% for b in bewegungen %}
+              <tr>
+                <td>{{ b.datum }}</td>
+                <td>{{ b.get_art_display }}</td>
+                <td>{{ b.betrag }} €</td>
+                <td>{{ b.rg_nummer|default:"–" }}</td>
+                <td>{{ b.notiz|default:"–" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted">Noch keine Kassenbewegungen erfasst.</p>
+    {% endif %}
+  </div>
+{% endblock %}
