@@ -36,11 +36,6 @@ class Getraenk(models.Model):
     )
     verkaufspreis = models.DecimalField(max_digits=8, decimal_places=2)
     aktiv = models.BooleanField(default=True)
-    anfangsbestand_lager = models.PositiveIntegerField(
-        default=0,
-        help_text="Einmalig beim Start gesetzt: wie viel von diesem Artikel lag "
-        "zu Beginn im Lager (nicht im Kühlschrank)?",
-    )
 
     class Meta:
         ordering = ["name"]
@@ -97,16 +92,19 @@ class Zaehlung(models.Model):
         super().save(*args, **kwargs)
 
 
-class ZaehlungBestand(models.Model):
-    """Gezaehlter Vollbestand eines einzelnen Artikels (Getraenk) zu einer Zaehlung."""
+class ZaehlungVerbrauch(models.Model):
+    """Wie viel von einem Artikel seit der letzten Zählung verbraucht/verkauft
+    wurde – direkt eingetragen, kein Bestand wird gezählt oder verglichen."""
 
     zaehlung = models.ForeignKey(
-        Zaehlung, on_delete=models.CASCADE, related_name="bestaende"
+        Zaehlung, on_delete=models.CASCADE, related_name="verbraeuche"
     )
     getraenk = models.ForeignKey(
-        Getraenk, on_delete=models.PROTECT, related_name="bestaende"
+        Getraenk, on_delete=models.PROTECT, related_name="verbraeuche"
     )
-    vollbestand_gezaehlt = models.PositiveIntegerField()
+    verbraucht = models.PositiveIntegerField(
+        help_text="Wie viele wurden seit der letzten Zählung verkauft/verbraucht?"
+    )
 
     class Meta:
         constraints = [
@@ -115,8 +113,8 @@ class ZaehlungBestand(models.Model):
             )
         ]
         ordering = ["zaehlung", "getraenk"]
-        verbose_name = "Zählungsbestand"
-        verbose_name_plural = "Zählungsbestände"
+        verbose_name = "Zählungsverbrauch"
+        verbose_name_plural = "Zählungsverbräuche"
 
     def __str__(self):
         return f"{self.getraenk} @ {self.zaehlung}"
@@ -124,40 +122,15 @@ class ZaehlungBestand(models.Model):
     def clean(self):
         if self.zaehlung_id:
             pruefe_monat_nicht_exportiert(
-                self.zaehlung.datum, "Eine Bestandskorrektur"
+                self.zaehlung.datum, "Eine Verbrauchskorrektur"
             )
-
-
-class Auffuellung(models.Model):
-    """Ware wird vom Lager in den Kühlschrank geräumt (z.B. "Wasser +15").
-    Nur das hier erhöht den gezählten Kühlschrankbestand in der Verkaufsformel
-    – ein Einkaufsbeleg allein tut das nicht, siehe README."""
-
-    getraenk = models.ForeignKey(
-        Getraenk, on_delete=models.PROTECT, related_name="auffuellungen"
-    )
-    datum = models.DateField()
-    anzahl = models.PositiveIntegerField()
-
-    class Meta:
-        ordering = ["-datum", "-id"]
-        verbose_name = "Auffüllung"
-        verbose_name_plural = "Auffüllungen"
-
-    def __str__(self):
-        return f"{self.anzahl}x {self.getraenk} aufgefüllt am {self.datum}"
-
-    def clean(self):
-        if self.datum:
-            pruefe_monat_nicht_exportiert(self.datum, "Eine Auffüllung")
 
 
 class Beleg(models.Model):
     """Einkaufsbeleg. Gilt immer automatisch als private Einlage von Nick –
     es gibt bewusst kein "Bezahlt von"-Feld, da der Einkauf nie aus der
-    Vertrauenskasse selbst bezahlt wird. Erhöht nur den Lagerbestand
-    (siehe `lagerbestand_aktuell` in services.py), nicht den gezählten
-    Kühlschrankbestand und fließt nicht in die Kassenformel ein."""
+    Vertrauenskasse selbst bezahlt wird. Rein dokumentarisch (Wareneinsatz),
+    fließt nicht in die Kassenformel ein."""
 
     datum = models.DateField()
     dateipfad = models.FileField(upload_to="belege/%Y/%m/", blank=True)

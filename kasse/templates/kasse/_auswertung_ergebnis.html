@@ -1,6 +1,4 @@
 <div class="card">
-  <h2>Zeitraum: {{ result.start.datum }} ({{ result.start.belegnummer }}) → {{ result.ende.datum }} ({{ result.ende.belegnummer }})</h2>
-
   {% if result.vorlaeufig %}
     <p class="muted">
       ⚠ Vorläufig: für diesen Zeitraum liegen noch ungeklärte PayPal-Zahlungen vor
@@ -84,9 +82,7 @@
       <thead>
         <tr>
           <th>Getränk</th>
-          <th>Kühlschrank Start</th>
-          <th>Aufgefüllt</th>
-          <th>Kühlschrank Ende</th>
+          <th>Verbraucht</th>
           <th>Frei</th>
           <th>Verkauft</th>
           <th>Preis</th>
@@ -97,9 +93,7 @@
         {% for p in result.positionen %}
           <tr>
             <td>{{ p.getraenk.name }}</td>
-            <td>{{ p.vollbestand_start }}</td>
-            <td>{{ p.aufgefuellt }}</td>
-            <td>{{ p.vollbestand_ende }}</td>
+            <td>{{ p.verbraucht }}</td>
             <td>{{ p.freigetraenke }}</td>
             <td>{{ p.verkauft }}</td>
             <td>{{ p.verkaufspreis }} €</td>

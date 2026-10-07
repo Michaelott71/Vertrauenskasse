@@ -12,7 +12,7 @@ import io
 from decimal import ROUND_HALF_UP, Decimal
 
 from .models import MonatsExport, PaypalZahlung, Zaehlung
-from .services import AuswertungError, berechne_auswertung
+from .services import berechne_auswertung, berechne_zeitraum
 
 USt_SATZ = Decimal("19")
 CSV_SPALTEN = [
@@ -64,14 +64,6 @@ def _zaehlungen_im_monat(jahr, monat):
     )
 
 
-def _vorherige_zaehlung(zaehlung):
-    return (
-        Zaehlung.objects.filter(datum__lt=zaehlung.datum)
-        .order_by("-datum", "-id")
-        .first()
-    )
-
-
 def erzeuge_zeilen(jahr, monat, aggregiert=False):
     """Baut die CSV-Zeilen fuer einen Monat. Gibt (zeilen, warnungen) zurueck."""
     zeilen = []  # Liste von (datum, zeile) zum Sortieren, roh vor der Formatierung
@@ -79,47 +71,24 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
     zaehlungen = _zaehlungen_im_monat(jahr, monat)
 
     if aggregiert:
-        if len(zaehlungen) >= 1:
-            start = _vorherige_zaehlung(zaehlungen[0])
-            ende = zaehlungen[-1]
-            if start is None:
-                warnungen.append(
-                    "Keine vorherige Zaehlung vor dem Monat gefunden - Monatsanfang "
-                    "kann nicht berechnet werden."
-                )
-            else:
-                try:
-                    ergebnis = berechne_auswertung(start, ende)
-                except AuswertungError as exc:
-                    warnungen.append(str(exc))
-                else:
-                    menge = sum(p.verkauft for p in ergebnis.positionen)
-                    if ergebnis.bar_anteil:
-                        zeilen.append((
-                            ende.datum,
-                            _brutto_zeile(
-                                ende.datum,
-                                ende.belegnummer,
-                                "Getränke & Snacks (Sammelposten, Monat)",
-                                menge,
-                                ergebnis.bar_anteil,
-                                "Bar",
-                            ),
-                        ))
+        ergebnis = berechne_zeitraum(zaehlungen)
+        if ergebnis is not None and ergebnis.bar_anteil:
+            menge = sum(p.verkauft for p in ergebnis.positionen)
+            letzte = zaehlungen[-1]
+            zeilen.append((
+                letzte.datum,
+                _brutto_zeile(
+                    letzte.datum,
+                    letzte.belegnummer,
+                    "Getränke & Snacks (Sammelposten, Monat)",
+                    menge,
+                    ergebnis.bar_anteil,
+                    "Bar",
+                ),
+            ))
     else:
         for zaehlung in zaehlungen:
-            start = _vorherige_zaehlung(zaehlung)
-            if start is None:
-                warnungen.append(
-                    f"{zaehlung.belegnummer}: keine vorherige Zaehlung gefunden, "
-                    "wird im Export uebersprungen."
-                )
-                continue
-            try:
-                ergebnis = berechne_auswertung(start, zaehlung)
-            except AuswertungError as exc:
-                warnungen.append(f"{zaehlung.belegnummer}: {exc}")
-                continue
+            ergebnis = berechne_auswertung(zaehlung)
             menge = sum(p.verkauft for p in ergebnis.positionen)
             if ergebnis.bar_anteil:
                 zeilen.append((

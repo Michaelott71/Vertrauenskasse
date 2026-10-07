@@ -1,7 +1,6 @@
 from django.contrib import admin
 
 from .models import (
-    Auffuellung,
     Beleg,
     BelegPosition,
     Freigetraenk,
@@ -11,25 +10,19 @@ from .models import (
     PaypalStichwort,
     PaypalZahlung,
     Zaehlung,
-    ZaehlungBestand,
+    ZaehlungVerbrauch,
 )
 
 
 @admin.register(Getraenk)
 class GetraenkAdmin(admin.ModelAdmin):
-    list_display = (
-        "name",
-        "warenpreis",
-        "verkaufspreis",
-        "anfangsbestand_lager",
-        "aktiv",
-    )
+    list_display = ("name", "warenpreis", "verkaufspreis", "aktiv")
     list_filter = ("aktiv",)
     search_fields = ("name",)
 
 
-class ZaehlungBestandInline(admin.TabularInline):
-    model = ZaehlungBestand
+class ZaehlungVerbrauchInline(admin.TabularInline):
+    model = ZaehlungVerbrauch
     extra = 1
 
 
@@ -37,7 +30,7 @@ class ZaehlungBestandInline(admin.TabularInline):
 class ZaehlungAdmin(admin.ModelAdmin):
     list_display = ("belegnummer", "datum", "notiz", "bargeld_gezaehlt")
     readonly_fields = ("belegnummer",)
-    inlines = [ZaehlungBestandInline]
+    inlines = [ZaehlungVerbrauchInline]
 
 
 class BelegPositionInline(admin.TabularInline):
@@ -54,12 +47,6 @@ class BelegAdmin(admin.ModelAdmin):
 @admin.register(Freigetraenk)
 class FreigetraenkAdmin(admin.ModelAdmin):
     list_display = ("datum", "getraenk", "anzahl", "kommentar")
-    list_filter = ("getraenk",)
-
-
-@admin.register(Auffuellung)
-class AuffuellungAdmin(admin.ModelAdmin):
-    list_display = ("datum", "getraenk", "anzahl")
     list_filter = ("getraenk",)
 
 

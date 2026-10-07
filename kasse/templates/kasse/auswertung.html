@@ -2,33 +2,36 @@
 {% block title %}Auswertung – Vertrauenskasse{% endblock %}
 {% block content %}
   <h1>Auswertung</h1>
+  <p class="muted"><a href="{% url 'kasse:monatsauswertung' %}">Zur Monatsauswertung</a></p>
 
-  {% if zu_wenig_zaehlungen %}
+  {% if not aktuelle_zaehlung %}
     <div class="card">
-      <p>Dafür brauchst du mindestens <strong>zwei</strong> Zählungen: eine
-        Auswertung zeigt immer, was zwischen zwei Zählungen verkauft wurde.</p>
-      <p class="muted">Lege zuerst eine zweite Zählung an, dann kannst du hier
-        die Auswertung zwischen zwei beliebigen Zählungen ansehen.</p>
+      <p>Noch keine Zählung erfasst.</p>
       <a class="btn" href="{% url 'kasse:zaehlung_neu' %}">Neue Zählung erfassen</a>
     </div>
   {% else %}
-  <p class="muted"><a href="{% url 'kasse:monatsauswertung' %}">Zur Monatsauswertung</a></p>
-
-  <div class="card">
-    <form method="get">
-      {{ form.as_p }}
-      <button type="submit">Berechnen</button>
-    </form>
-  </div>
-
-  {% if error %}
     <div class="card">
-      <p class="negative">{{ error }}</p>
+      <form method="get">
+        <label for="zaehlung-auswahl">Zählung:</label>
+        <select id="zaehlung-auswahl" name="zaehlung" onchange="this.form.submit()">
+          {% for z in zaehlungen %}
+            <option value="{{ z.pk }}" {% if z.pk == aktuelle_zaehlung.pk %}selected{% endif %}>
+              {{ z.belegnummer }} ({{ z.datum }})
+            </option>
+          {% endfor %}
+        </select>
+        <noscript><button type="submit">Anzeigen</button></noscript>
+      </form>
     </div>
-  {% endif %}
 
-  {% if result %}
+    <h2>
+      {{ aktuelle_zaehlung.belegnummer }} ({{ aktuelle_zaehlung.datum }})
+      {% if result.vorherige %}
+        <span class="muted">– seit {{ result.vorherige.belegnummer }} ({{ result.vorherige.datum }})</span>
+      {% else %}
+        <span class="muted">– erste Zählung</span>
+      {% endif %}
+    </h2>
     {% include "kasse/_auswertung_ergebnis.html" %}
-  {% endif %}
   {% endif %}
 {% endblock %}

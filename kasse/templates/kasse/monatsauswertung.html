@@ -2,7 +2,7 @@
 {% block title %}Monatsauswertung – Vertrauenskasse{% endblock %}
 {% block content %}
   <h1>Monatsauswertung</h1>
-  <p class="muted"><a href="{% url 'kasse:auswertung' %}">Zur Auswertung zwischen zwei Zaehlungen</a></p>
+  <p class="muted"><a href="{% url 'kasse:auswertung' %}">Zur Auswertung je Zählung</a></p>
 
   <div class="card">
     <form method="get">
@@ -37,9 +37,7 @@
                 <td>{{ z.notiz|default:"–" }}</td>
                 <td>{% if z.bargeld_gezaehlt is not None %}{{ z.bargeld_gezaehlt }} €{% else %}–{% endif %}</td>
                 <td>
-                  {% if z.vorherige_id %}
-                    <a href="{% url 'kasse:auswertung' %}?start={{ z.vorherige_id }}&ende={{ z.pk }}">Auswertung zur vorherigen</a>
-                  {% endif %}
+                  <a href="{% url 'kasse:auswertung' %}?zaehlung={{ z.pk }}">Auswertung ansehen</a>
                 </td>
               </tr>
             {% endfor %}
@@ -51,18 +49,8 @@
     {% endif %}
   </div>
 
-  {% if error %}
-    <div class="card">
-      <p class="negative">{{ error }}</p>
-    </div>
-  {% endif %}
-
   {% if result %}
-    <h2>Monatsergebnis (erste vs. letzte Zaehlung im Monat)</h2>
+    <h2>Monatsergebnis (Summe aller Zählungen im Monat)</h2>
     {% include "kasse/_auswertung_ergebnis.html" %}
-  {% elif zaehlungen|length == 1 %}
-    <div class="card">
-      <p class="muted">Nur eine Zaehlung in diesem Monat — fuer ein Monatsergebnis werden mindestens zwei benoetigt.</p>
-    </div>
   {% endif %}
 {% endblock %}

@@ -26,16 +26,6 @@ class ZaehlungMetaForm(forms.ModelForm):
         }
 
 
-class AuffuellungMetaForm(forms.Form):
-    """Datum fuer eine Auffuellungs-Erfassung; die Mengen je Artikel kommen aus
-    den Kacheln und werden im View direkt aus dem POST gelesen."""
-
-    datum = forms.DateField(
-        label="Datum",
-        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-    )
-
-
 class FreigetraenkMetaForm(forms.Form):
     """Datum/Kommentar fuer eine Freigetraenke-Erfassung; die Mengen je Artikel
     kommen aus den Kacheln und werden im View direkt aus dem POST gelesen."""
@@ -66,15 +56,6 @@ class KassenbewegungForm(forms.ModelForm):
                 }
             ),
         }
-
-
-class AuswertungAuswahlForm(forms.Form):
-    start = forms.ModelChoiceField(
-        queryset=Zaehlung.objects.all(), label="Start-Zählung"
-    )
-    ende = forms.ModelChoiceField(
-        queryset=Zaehlung.objects.all(), label="End-Zählung"
-    )
 
 
 class MonatsauswahlForm(forms.Form):

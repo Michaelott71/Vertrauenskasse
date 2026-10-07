@@ -13,8 +13,6 @@ from django.utils import timezone
 from . import matching
 from .export import erzeuge_csv, markiere_als_exportiert
 from .forms import (
-    AuffuellungMetaForm,
-    AuswertungAuswahlForm,
     ExportForm,
     FreigetraenkMetaForm,
     KassenbewegungForm,
@@ -24,7 +22,6 @@ from .forms import (
     ZaehlungMetaForm,
 )
 from .models import (
-    Auffuellung,
     Freigetraenk,
     GesperrterMonatError,
     Getraenk,
@@ -32,10 +29,10 @@ from .models import (
     MonatsExport,
     PaypalZahlung,
     Zaehlung,
-    ZaehlungBestand,
+    ZaehlungVerbrauch,
     pruefe_monat_nicht_exportiert,
 )
-from .services import AuswertungError, berechne_auswertung, lagerbestaende_aktiv
+from .services import berechne_auswertung, berechne_zeitraum
 
 
 def _int_aus_post(data, key):
@@ -75,11 +72,11 @@ def zaehlung_neu(request):
             with transaction.atomic():
                 zaehlung = meta_form.save()
                 for getraenk in artikel:
-                    ZaehlungBestand.objects.create(
+                    ZaehlungVerbrauch.objects.create(
                         zaehlung=zaehlung,
                         getraenk=getraenk,
-                        vollbestand_gezaehlt=_int_aus_post(
-                            request.POST, f"bestand_{getraenk.id}"
+                        verbraucht=_int_aus_post(
+                            request.POST, f"verbraucht_{getraenk.id}"
                         ),
                     )
             messages.success(
@@ -96,53 +93,6 @@ def zaehlung_neu(request):
             "meta_form": meta_form,
             "artikel": artikel,
         },
-    )
-
-
-@login_required
-def auffuellung_neu(request):
-    artikel = list(Getraenk.objects.filter(aktiv=True).order_by("name"))
-
-    if not artikel:
-        messages.info(
-            request,
-            "Es sind noch keine aktiven Getränke angelegt. Bitte zuerst in der "
-            "Verwaltung ein Getränk anlegen.",
-        )
-        return render(request, "kasse/auffuellung_form.html", {"keine_artikel": True})
-
-    if request.method == "POST":
-        meta_form = AuffuellungMetaForm(request.POST)
-        if meta_form.is_valid():
-            datum = meta_form.cleaned_data["datum"]
-            try:
-                pruefe_monat_nicht_exportiert(datum, "Eine Auffüllung")
-            except GesperrterMonatError as exc:
-                messages.error(request, str(exc))
-            else:
-                erstellt = 0
-                with transaction.atomic():
-                    for getraenk in artikel:
-                        anzahl = _int_aus_post(request.POST, f"anzahl_{getraenk.id}")
-                        if anzahl > 0:
-                            Auffuellung.objects.create(
-                                getraenk=getraenk, datum=datum, anzahl=anzahl
-                            )
-                            erstellt += 1
-                if erstellt:
-                    messages.success(
-                        request, f"{erstellt} Auffüllung(en) gespeichert."
-                    )
-                else:
-                    messages.info(request, "Keine Mengen eingegeben, nichts gespeichert.")
-                return redirect(reverse("kasse:home"))
-    else:
-        meta_form = AuffuellungMetaForm(initial={"datum": timezone.localdate()})
-
-    return render(
-        request,
-        "kasse/auffuellung_form.html",
-        {"meta_form": meta_form, "artikel": artikel},
     )
 
 
@@ -198,15 +148,6 @@ def freigetraenk_neu(request):
 
 
 @login_required
-def lager_uebersicht(request):
-    return render(
-        request,
-        "kasse/lager_uebersicht.html",
-        {"lagerbestaende": lagerbestaende_aktiv()},
-    )
-
-
-@login_required
 def kassenbewegung_neu(request):
     if request.method == "POST":
         form = KassenbewegungForm(request.POST)
@@ -228,49 +169,22 @@ def kassenbewegung_neu(request):
 @login_required
 def auswertung(request):
     zaehlungen = Zaehlung.objects.all()
-    result = None
-    error = None
 
-    if zaehlungen.count() < 2:
-        return render(
-            request,
-            "kasse/auswertung.html",
-            {"zu_wenig_zaehlungen": True},
-        )
-
-    start_id = request.GET.get("start")
-    ende_id = request.GET.get("ende")
-
-    initial = {}
-    if start_id and ende_id:
-        initial = {"start": start_id, "ende": ende_id}
+    zaehlung_id = request.GET.get("zaehlung")
+    if zaehlung_id:
+        aktuelle_zaehlung = get_object_or_404(Zaehlung, pk=zaehlung_id)
     else:
-        letzte = list(zaehlungen[:2])
-        if len(letzte) == 2:
-            initial = {"start": letzte[1].pk, "ende": letzte[0].pk}
+        aktuelle_zaehlung = zaehlungen.first()
 
-    selection_data = {"start": start_id, "ende": ende_id} if start_id and ende_id else None
-    form = AuswertungAuswahlForm(selection_data, initial=initial)
-    form.fields["start"].queryset = zaehlungen
-    form.fields["ende"].queryset = zaehlungen
-
-    if start_id and ende_id:
-        start = get_object_or_404(Zaehlung, pk=start_id)
-        ende = get_object_or_404(Zaehlung, pk=ende_id)
-        try:
-            result = berechne_auswertung(start, ende)
-        except AuswertungError as exc:
-            error = str(exc)
+    result = berechne_auswertung(aktuelle_zaehlung) if aktuelle_zaehlung else None
 
     return render(
         request,
         "kasse/auswertung.html",
         {
-            "form": form,
+            "zaehlungen": zaehlungen,
+            "aktuelle_zaehlung": aktuelle_zaehlung,
             "result": result,
-            "error": error,
-            "start_id": start_id,
-            "ende_id": ende_id,
         },
     )
 
@@ -293,16 +207,8 @@ def monatsauswertung(request):
             "datum", "id"
         )
     )
-    for vorherige, aktuelle in zip(zaehlungen_im_monat, zaehlungen_im_monat[1:]):
-        aktuelle.vorherige_id = vorherige.pk
 
-    result = None
-    error = None
-    if len(zaehlungen_im_monat) >= 2:
-        try:
-            result = berechne_auswertung(zaehlungen_im_monat[0], zaehlungen_im_monat[-1])
-        except AuswertungError as exc:
-            error = str(exc)
+    result = berechne_zeitraum(zaehlungen_im_monat)
 
     bereits_exportiert = MonatsExport.objects.filter(
         jahr=monat_start.year, monat=monat_start.month
@@ -316,7 +222,6 @@ def monatsauswertung(request):
             "monat_start": monat_start,
             "zaehlungen": zaehlungen_im_monat,
             "result": result,
-            "error": error,
             "bereits_exportiert": bereits_exportiert,
         },
     )
