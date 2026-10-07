@@ -1,11 +1,11 @@
 import calendar
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Sum
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -184,9 +184,12 @@ def beleg_neu(request):
     monatsbelege = Beleg.objects.filter(
         datum__year=heute.year, datum__month=heute.month
     )
-    einkaufswert_monat = monatsbelege.aggregate(summe=Sum("gesamtbetrag"))[
-        "summe"
-    ] or 0
+    # Python-Summe statt SQL-Sum(): SQLite berechnet SUM() ueber Decimal-
+    # Spalten per Gleitkomma, was Rundungsmuell wie "40,3000000000000"
+    # erzeugt.
+    einkaufswert_monat = sum(
+        (b.gesamtbetrag for b in monatsbelege), Decimal("0")
+    )
 
     belege = Beleg.objects.all()[:50]
     return render(

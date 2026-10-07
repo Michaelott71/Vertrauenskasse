@@ -144,10 +144,14 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         - auswertung.fremde_bargeldeingaenge
     )
 
-    paypal_summe = PaypalZahlung.objects.filter(
+    # Python-Summe statt SQL-Sum(): SQLite berechnet SUM() ueber Decimal-
+    # Spalten per Gleitkomma, was Rundungsmuell wie "40,3000000000000" erzeugt.
+    paypal_zahlungen = PaypalZahlung.objects.filter(
         zaehlung=zaehlung, ist_getraenke_zahlung=True
-    ).aggregate(summe=Sum("betrag"))["summe"]
-    auswertung.paypal_anteil = paypal_summe or Decimal("0")
+    )
+    auswertung.paypal_anteil = sum(
+        (p.betrag for p in paypal_zahlungen), Decimal("0")
+    )
 
     paypal_im_zeitraum = PaypalZahlung.objects.filter(datum__lte=zaehlung.datum)
     if start_datum:
