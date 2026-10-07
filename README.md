@@ -203,11 +203,24 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
 
 ## Workflows
 
-- **Neue Zählung** (`/zaehlung/neu/`): Kachel-Oberfläche wie an einem
-  Kassensystem — eine Kachel pro aktivem Artikel, direkt eingetragen wird,
-  wie viel seit der letzten Zählung verbraucht/verkauft wurde. Keine
-  Textfelder, kein Bestand zählen. Antippen zählt hoch, Minus-Symbol oder
-  langes Drücken wieder runter, Zählstand live sichtbar.
+- **Neue Zählung** (`/zaehlung/neu/`), in zwei Schritten:
+  1. Kachel-Oberfläche wie an einem Kassensystem — eine Kachel pro aktivem
+     Artikel, direkt eingetragen wird, wie viel seit der letzten Zählung
+     verbraucht/verkauft wurde. Keine Textfelder, kein Bestand zählen.
+     Antippen zählt hoch, Minus-Symbol oder langes Drücken wieder runter,
+     Zählstand live sichtbar. Beim Speichern wird daraus direkt der
+     Soll-Betrag berechnet.
+  2. **Bargeld bestätigen** (`/zaehlung/<id>/bargeld/`): zeigt den gerade
+     berechneten Soll-Betrag vorausgefüllt in einem großen Zahlenfeld — das
+     tatsächlich gezählte Bargeld in der Kasse wird damit entweder einfach
+     bestätigt (wenn es stimmt) oder auf den abweichenden Wert korrigiert.
+     Kein zweites, unabhängiges Eintippen eines Betrags mehr nötig.
+
+  Wird Schritt 2 übersprungen (z.B. Browser geschlossen), bleibt das Bargeld
+  der Zählung leer. Auf der Startseite erscheint dafür ein Hinweis "Bargeld
+  noch erfassen", und die Auswertung warnt deutlich, dass die Kassendifferenz
+  für diese Zählung noch nicht aussagekräftig ist (geht bis dahin von 0 €
+  gezähltem Bargeld aus).
 - **Freigetränke** (`/freigetraenk/neu/`): gleiche Kachel-Bedienung, Datum
   frei wählbar (auch rückwirkend, solange der Monat nicht exportiert ist).
 - **Kassenbewegung** (`/kassenbewegung/neu/`): Einlage/Entnahme/fremder

@@ -1,0 +1,28 @@
+{% extends "kasse/base.html" %}
+{% block title %}Bargeld bestätigen – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Bargeld bestätigen</h1>
+  <p class="muted">Zählung {{ zaehlung.belegnummer }} ({{ zaehlung.datum }}) – der
+    Verbrauch ist gespeichert. Aus den eingetragenen Mengen ergibt sich
+    folgender Soll-Betrag. Bitte zähle das Bargeld in der Kasse nach und
+    bestätige den Betrag oder korrigiere ihn auf den tatsächlich gezählten
+    Wert.</p>
+
+  <div class="card">
+    <div class="summary-item">
+      <div class="muted">Soll-Kasse (berechnet aus dem Verbrauch)</div>
+      <div class="value">{{ result.soll_kasse }} €</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <p class="negative">{{ form.non_field_errors }}</p>
+      {% endif %}
+      {{ form.as_p }}
+      <button type="submit" class="btn-save">Bargeld bestätigen</button>
+    </form>
+  </div>
+{% endblock %}

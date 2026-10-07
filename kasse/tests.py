@@ -450,19 +450,20 @@ class ZaehlungNeuViewTests(TestCase):
         self.assertContains(response, "Wasser")
         self.assertContains(response, "Twix")
 
-    def test_post_speichert_verbrauch(self):
+    def test_post_speichert_verbrauch_und_leitet_zur_bargeldbestaetigung(self):
         response = self.client.post(
             reverse("kasse:zaehlung_neu"),
             {
                 "datum": "2026-06-01",
                 "notiz": "",
-                "bargeld_gezaehlt": "50.00",
                 f"verbraucht_{self.wasser.id}": "80",
                 f"verbraucht_{self.twix.id}": "15",
             },
         )
-        self.assertEqual(response.status_code, 302)
         zaehlung = Zaehlung.objects.get(datum="2026-06-01")
+        self.assertRedirects(
+            response, reverse("kasse:zaehlung_bargeld", args=[zaehlung.pk])
+        )
         self.assertEqual(
             ZaehlungVerbrauch.objects.get(zaehlung=zaehlung, getraenk=self.wasser).verbraucht,
             80,
@@ -471,6 +472,55 @@ class ZaehlungNeuViewTests(TestCase):
             ZaehlungVerbrauch.objects.get(zaehlung=zaehlung, getraenk=self.twix).verbraucht,
             15,
         )
+        self.assertIsNone(zaehlung.bargeld_gezaehlt)
+
+
+class ZaehlungBargeldViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+        self.client.login(username="tester", password="pw12345678")
+        self.zaehlung = Zaehlung.objects.create(datum="2026-06-01")
+        _verbrauch(self.zaehlung, self.wasser, 10)
+
+    def test_get_zeigt_soll_betrag_als_vorbelegten_wert(self):
+        response = self.client.get(
+            reverse("kasse:zaehlung_bargeld", args=[self.zaehlung.pk])
+        )
+        self.assertContains(response, "15,00")
+        self.assertEqual(
+            response.context["form"].initial["bargeld_gezaehlt"], Decimal("15.00")
+        )
+
+    def test_post_bestaetigt_betrag(self):
+        response = self.client.post(
+            reverse("kasse:zaehlung_bargeld", args=[self.zaehlung.pk]),
+            {"bargeld_gezaehlt": "15.00"},
+        )
+        self.assertRedirects(response, reverse("kasse:home"))
+        self.zaehlung.refresh_from_db()
+        self.assertEqual(self.zaehlung.bargeld_gezaehlt, Decimal("15.00"))
+
+    def test_post_korrigiert_betrag(self):
+        response = self.client.post(
+            reverse("kasse:zaehlung_bargeld", args=[self.zaehlung.pk]),
+            {"bargeld_gezaehlt": "12.50"},
+        )
+        self.assertRedirects(response, reverse("kasse:home"))
+        self.zaehlung.refresh_from_db()
+        self.assertEqual(self.zaehlung.bargeld_gezaehlt, Decimal("12.50"))
+
+    def test_post_in_exportiertem_monat_wird_blockiert(self):
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        response = self.client.post(
+            reverse("kasse:zaehlung_bargeld", args=[self.zaehlung.pk]),
+            {"bargeld_gezaehlt": "15.00"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.zaehlung.refresh_from_db()
+        self.assertIsNone(self.zaehlung.bargeld_gezaehlt)
 
 
 class FreigetraenkNeuViewTests(TestCase):
@@ -599,6 +649,16 @@ class AuswertungViewTests(TestCase):
         _zaehlung("2026-06-15", "0")
         response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": z1.pk})
         self.assertContains(response, z1.belegnummer)
+
+    def test_warnt_wenn_bargeld_noch_nicht_bestaetigt(self):
+        zaehlung = Zaehlung.objects.create(datum="2026-06-01")
+        response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": zaehlung.pk})
+        self.assertContains(response, "noch kein Bargeld bestätigt")
+
+    def test_keine_warnung_wenn_bargeld_erfasst(self):
+        z = _zaehlung("2026-06-01", "0")
+        response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": z.pk})
+        self.assertNotContains(response, "noch kein Bargeld bestätigt")
 
 
 class MonatsauswertungViewTests(TestCase):

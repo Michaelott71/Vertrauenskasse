@@ -34,7 +34,13 @@
                 <td>{{ z.belegnummer }}</td>
                 <td>{{ z.datum }}</td>
                 <td>{{ z.notiz|default:"–" }}</td>
-                <td>{% if z.bargeld_gezaehlt is not None %}{{ z.bargeld_gezaehlt }} €{% else %}–{% endif %}</td>
+                <td>
+                  {% if z.bargeld_gezaehlt is not None %}
+                    {{ z.bargeld_gezaehlt }} €
+                  {% else %}
+                    <a href="{% url 'kasse:zaehlung_bargeld' z.pk %}">Bargeld noch erfassen</a>
+                  {% endif %}
+                </td>
                 <td><a href="{% url 'admin:kasse_zaehlung_change' z.pk %}">bearbeiten</a></td>
               </tr>
             {% endfor %}

@@ -32,6 +32,16 @@
         <span class="muted">– erste Zählung</span>
       {% endif %}
     </h2>
+    {% if aktuelle_zaehlung.bargeld_gezaehlt is None %}
+      <div class="card">
+        <p class="negative">
+          ⚠ Für diese Zählung wurde noch kein Bargeld bestätigt – die
+          Kassendifferenz unten geht bisher von 0 € gezähltem Bargeld aus und
+          ist nicht aussagekräftig.
+          <a href="{% url 'kasse:zaehlung_bargeld' aktuelle_zaehlung.pk %}">Jetzt Bargeld erfassen</a>.
+        </p>
+      </div>
+    {% endif %}
     {% include "kasse/_auswertung_ergebnis.html" %}
   {% endif %}
 {% endblock %}

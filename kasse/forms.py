@@ -6,24 +6,42 @@ from .models import Beleg, Kassenbewegung, PaypalZahlung, Zaehlung
 
 
 class ZaehlungMetaForm(forms.ModelForm):
-    """Die "Kopf"-Felder einer Zaehlung. Die eigentlichen Bestandswerte kommen
-    aus den Kacheln und werden im View direkt aus dem POST gelesen, da ihre
-    Anzahl von den aktiven Getraenken abhaengt."""
+    """Die "Kopf"-Felder einer Zaehlung. Die eigentlichen Verbrauchswerte
+    kommen aus den Kacheln und werden im View direkt aus dem POST gelesen, da
+    ihre Anzahl von den aktiven Getraenken abhaengt. Das gezaehlte Bargeld wird
+    bewusst erst im zweiten Schritt (nach Berechnung des Soll-Betrags)
+    abgefragt, siehe BargeldBestaetigenForm."""
 
     class Meta:
         model = Zaehlung
-        fields = ["datum", "notiz", "bargeld_gezaehlt"]
+        fields = ["datum", "notiz"]
         widgets = {
             "datum": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
             "notiz": forms.Textarea(attrs={"rows": 2}),
-            "bargeld_gezaehlt": forms.NumberInput(
-                attrs={
-                    "step": "0.01",
-                    "inputmode": "decimal",
-                    "class": "betrag-input-gross",
-                }
-            ),
         }
+
+
+class BargeldBestaetigenForm(forms.ModelForm):
+    """Zweiter Schritt einer Zaehlung: das Feld wird mit dem berechneten
+    Soll-Betrag vorausgefuellt, der Nutzer bestaetigt ihn oder korrigiert ihn
+    auf das tatsaechlich gezaehlte Bargeld."""
+
+    bargeld_gezaehlt = forms.DecimalField(
+        label="Gezähltes Bargeld",
+        max_digits=9,
+        decimal_places=2,
+        widget=forms.NumberInput(
+            attrs={
+                "step": "0.01",
+                "inputmode": "decimal",
+                "class": "betrag-input-gross",
+            }
+        ),
+    )
+
+    class Meta:
+        model = Zaehlung
+        fields = ["bargeld_gezaehlt"]
 
 
 class FreigetraenkMetaForm(forms.Form):

@@ -14,6 +14,7 @@ from django.utils import timezone
 from . import matching
 from .export import erzeuge_csv, markiere_als_exportiert
 from .forms import (
+    BargeldBestaetigenForm,
     BelegForm,
     ExportForm,
     FreigetraenkMetaForm,
@@ -82,10 +83,7 @@ def zaehlung_neu(request):
                             request.POST, f"verbraucht_{getraenk.id}"
                         ),
                     )
-            messages.success(
-                request, f"Zählung {zaehlung.belegnummer} wurde gespeichert."
-            )
-            return redirect(reverse("kasse:home"))
+            return redirect(reverse("kasse:zaehlung_bargeld", args=[zaehlung.pk]))
     else:
         meta_form = ZaehlungMetaForm(initial={"datum": timezone.localdate()})
 
@@ -96,6 +94,39 @@ def zaehlung_neu(request):
             "meta_form": meta_form,
             "artikel": artikel,
         },
+    )
+
+
+@login_required
+def zaehlung_bargeld(request, zaehlung_id):
+    """Zweiter Schritt einer Zaehlung: zeigt den aus dem Verbrauch berechneten
+    Soll-Betrag und laesst ihn bestaetigen oder auf das tatsaechlich
+    gezaehlte Bargeld korrigieren."""
+    zaehlung = get_object_or_404(Zaehlung, pk=zaehlung_id)
+    result = berechne_auswertung(zaehlung)
+
+    if request.method == "POST":
+        form = BargeldBestaetigenForm(request.POST, instance=zaehlung)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request, f"Zählung {zaehlung.belegnummer} wurde gespeichert."
+            )
+            return redirect(reverse("kasse:home"))
+    else:
+        initial_bargeld = (
+            zaehlung.bargeld_gezaehlt
+            if zaehlung.bargeld_gezaehlt is not None
+            else result.soll_kasse
+        )
+        form = BargeldBestaetigenForm(
+            instance=zaehlung, initial={"bargeld_gezaehlt": initial_bargeld}
+        )
+
+    return render(
+        request,
+        "kasse/zaehlung_bargeld.html",
+        {"zaehlung": zaehlung, "result": result, "form": form},
     )
 
 
