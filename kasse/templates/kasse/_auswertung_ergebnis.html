@@ -32,24 +32,14 @@
 </div>
 
 <div class="card">
-  <h2>Gewinn (ungefähr)</h2>
-  <p class="muted">Soll-Kasse abzüglich der in diesem Zeitraum erfassten Einkäufe
-    (<a href="{% url 'kasse:beleg_neu' %}">Belege</a>). Rein informativ, fließt
-    nicht in die Kassendifferenz ein.</p>
+  <h2>Einkäufe in diesem Zeitraum</h2>
+  <p class="muted">Rein informativ – ein Einkauf ist immer eine private Einlage
+    von dir und fließt in keine Berechnung oben ein (weder Soll-Kasse noch
+    Kassendifferenz). <a href="{% url 'kasse:beleg_neu' %}">Neuen Beleg erfassen</a>.</p>
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="muted">Soll-Kasse</div>
-      <div class="value">{{ result.soll_kasse }} €</div>
-    </div>
-    <div class="summary-item">
-      <div class="muted">− Einkaufswert (Belege)</div>
+      <div class="muted">Einkaufswert (Belege)</div>
       <div class="value">{{ result.einkaufswert }} €</div>
-    </div>
-    <div class="summary-item">
-      <div class="muted">= Gewinn</div>
-      <div class="value {% if result.gewinn < 0 %}negative{% else %}positive{% endif %}">
-        {{ result.gewinn }} €
-      </div>
     </div>
     <div class="summary-item">
       <div class="muted">Wert ausgegebener Freigetränke</div>
@@ -60,7 +50,7 @@
     <div class="table-scroll">
       <table>
         <thead>
-          <tr><th>Datum</th><th>Händler</th><th>Gesamtbetrag</th></tr>
+          <tr><th>Datum</th><th>Händler</th><th>Gesamtbetrag</th><th>Was gekauft</th></tr>
         </thead>
         <tbody>
           {% for b in result.belege %}
@@ -68,6 +58,13 @@
               <td>{{ b.datum }}</td>
               <td>{{ b.haendler|default:"–" }}</td>
               <td>{{ b.gesamtbetrag }} €</td>
+              <td>
+                {% for p in b.positionen.all %}
+                  {{ p.anzahl }}x {{ p.getraenk.name }}{% if not forloop.last %}, {% endif %}
+                {% empty %}
+                  –
+                {% endfor %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>

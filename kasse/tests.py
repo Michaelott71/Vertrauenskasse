@@ -196,14 +196,15 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.entnahmen, Decimal("0"))
         self.assertEqual(ergebnis.bar_anteil, Decimal("142.50"))
 
-    def test_einkaufswert_wird_vom_soll_kasse_abgezogen_zu_gewinn(self):
+    def test_einkaufswert_ist_rein_informativ_und_veraendert_soll_kasse_nicht(self):
         Beleg.objects.create(
             datum="2026-06-10", gesamtbetrag=Decimal("40.00"), haendler="Getraenkemarkt"
         )
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
         self.assertEqual(ergebnis.einkaufswert, Decimal("40.00"))
-        self.assertEqual(ergebnis.gewinn, ergebnis.soll_kasse - Decimal("40.00"))
+        self.assertEqual(ergebnis.soll_kasse, Decimal("175.00"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("-32.50"))
         self.assertEqual(len(ergebnis.belege), 1)
 
     def test_beleg_ausserhalb_zeitraum_zaehlt_nicht_zum_einkaufswert(self):
@@ -222,6 +223,48 @@ class AuswertungTests(TestCase):
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
         self.assertEqual(ergebnis.freigetraenke_wert, 5 * Decimal("1.50"))
+
+    def test_bargeld_vorschlag_ohne_kassenbewegungen(self):
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        # start.bargeld_gezaehlt ist 0, also Vorschlag = 0 + Soll-Kasse.
+        self.assertEqual(ergebnis.bargeld_vorschlag, ergebnis.soll_kasse)
+
+    def test_bargeld_vorschlag_beruecksichtigt_vorheriges_bargeld(self):
+        # Reproduziert den vom Nutzer gemeldeten Fall: der Vorschlag fuer eine
+        # zweite Zaehlung muss den bereits bestaetigten Betrag der vorherigen
+        # Zaehlung aufaddieren, nicht nur den neuen Soll-Umsatz.
+        self.start.bargeld_gezaehlt = Decimal("50.00")
+        self.start.save()
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(
+            ergebnis.bargeld_vorschlag, Decimal("50.00") + ergebnis.soll_kasse
+        )
+
+    def test_bargeld_vorschlag_beruecksichtigt_kassenbewegungen_und_paypal(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-10", betrag=Decimal("20.00")
+        )
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.ENTNAHME, datum="2026-06-11", betrag=Decimal("5.00")
+        )
+        PaypalZahlung.objects.create(
+            datum="2026-06-12", betrag=Decimal("10.00"), zaehlung=self.ende,
+            paypal_transaktions_id="TXV1", ist_getraenke_zahlung=True,
+        )
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(
+            ergebnis.bargeld_vorschlag,
+            ergebnis.soll_kasse + Decimal("20.00") - Decimal("5.00") - Decimal("10.00"),
+        )
+
+    def test_einkaufswert_fliesst_nicht_in_bargeld_vorschlag_ein(self):
+        Beleg.objects.create(datum="2026-06-10", gesamtbetrag=Decimal("40.00"))
+        self._ende_verbrauch()
+        ergebnis = berechne_auswertung(self.ende)
+        self.assertEqual(ergebnis.bargeld_vorschlag, ergebnis.soll_kasse)
 
 
 class ZeitraumAuswertungTests(TestCase):
@@ -244,7 +287,7 @@ class ZeitraumAuswertungTests(TestCase):
     def test_leere_liste_gibt_none(self):
         self.assertIsNone(berechne_zeitraum([]))
 
-    def test_summiert_einkaufswert_und_gewinn(self):
+    def test_summiert_einkaufswert_ohne_auswirkung_auf_soll_kasse(self):
         getraenk = Getraenk.objects.create(
             name="Cola", warenpreis=Decimal("0.40"), verkaufspreis=Decimal("2.00")
         )
@@ -256,7 +299,7 @@ class ZeitraumAuswertungTests(TestCase):
 
         ergebnis = berechne_zeitraum([z1, z2])
         self.assertEqual(ergebnis.einkaufswert, Decimal("15.00"))
-        self.assertEqual(ergebnis.gewinn, Decimal("40.00") - Decimal("15.00"))
+        self.assertEqual(ergebnis.soll_kasse, Decimal("40.00"))
 
 
 class PaypalMatchingTests(TestCase):
@@ -512,6 +555,17 @@ class ZaehlungBargeldViewTests(TestCase):
         self.zaehlung.refresh_from_db()
         self.assertEqual(self.zaehlung.bargeld_gezaehlt, Decimal("12.50"))
 
+    def test_get_zeigt_bisheriges_bargeld_bei_zweiter_zaehlung(self):
+        self.zaehlung.bargeld_gezaehlt = Decimal("15.00")
+        self.zaehlung.save()
+        zweite = Zaehlung.objects.create(datum="2026-06-10")
+        _verbrauch(zweite, self.wasser, 2)  # 2 * 1.50 = 3.00
+
+        response = self.client.get(reverse("kasse:zaehlung_bargeld", args=[zweite.pk]))
+        self.assertEqual(
+            response.context["form"].initial["bargeld_gezaehlt"], Decimal("18.00")
+        )
+
     def test_post_in_exportiertem_monat_wird_blockiert(self):
         MonatsExport.objects.create(jahr=2026, monat=6)
         response = self.client.post(
@@ -595,6 +649,9 @@ class KassenbewegungNeuViewTests(TestCase):
 class BelegNeuViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.15"), verkaufspreis=Decimal("1.50"),
+        )
         self.client.login(username="tester", password="pw12345678")
 
     def test_post_erstellt_beleg(self):
@@ -610,6 +667,23 @@ class BelegNeuViewTests(TestCase):
         beleg = Beleg.objects.get()
         self.assertEqual(beleg.gesamtbetrag, Decimal("40.00"))
         self.assertEqual(beleg.haendler, "Getraenkemarkt")
+
+    def test_post_erstellt_belegposition_mit_warenpreis_als_einzelpreis(self):
+        response = self.client.post(
+            reverse("kasse:beleg_neu"),
+            {
+                "datum": "2026-06-01",
+                "haendler": "Getraenkemarkt",
+                "gesamtbetrag": "1.50",
+                f"anzahl_{self.wasser.id}": "10",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        beleg = Beleg.objects.get()
+        position = BelegPosition.objects.get(beleg=beleg)
+        self.assertEqual(position.getraenk, self.wasser)
+        self.assertEqual(position.anzahl, 10)
+        self.assertEqual(position.einzelpreis, Decimal("0.15"))
 
     def test_post_in_exportiertem_monat_wird_blockiert(self):
         MonatsExport.objects.create(jahr=2026, monat=6)

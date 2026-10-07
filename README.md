@@ -55,8 +55,8 @@ die für die geforderte Rechen-/Zuordnungslogik technisch nötig sind (siehe
 | `Getraenk` | Artikel: Name, Warenpreis (ohne Pfand), Verkaufspreis, aktiv |
 | `Zaehlung` | Ein Zählungszeitpunkt (Datum, Notiz, Bargeld gezählt, Belegnummer `VK-JJJJ-MM-NN`) |
 | `ZaehlungVerbrauch` | Direkt eingetragen: wie viel von einem Artikel seit der letzten Zählung verbraucht/verkauft wurde (kein Bestand wird gezählt oder verglichen) |
-| `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Händler) — gilt immer automatisch als private Einlage; fließt nicht in die Kassendifferenz ein, nur informativ in den ausgewiesenen Gewinn |
-| `BelegPosition` | Positionen eines Belegs je Getränk (Einkaufsmenge), Einzelpreis nur der Warenpreis ohne Pfand-Anteil |
+| `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Händler) — gilt immer automatisch als private Einlage von Nick; rein dokumentarisch, fließt in keine Kassenberechnung ein |
+| `BelegPosition` | Positionen eines Belegs je Getränk (Einkaufsmenge), Einzelpreis = `Getraenk.warenpreis` zum Zeitpunkt des Einkaufs |
 | `Freigetraenk` | Freigetränke je Getränk, auch rückwirkend nachtragbar (bis zum CSV-Export des Monats) |
 | `Kassenbewegung` | Bargeldbewegung ohne Bezug zum Getränkeverkauf: Einlage, Entnahme oder fremder Bargeldeingang |
 | `PaypalZahlung` | PayPal-Zahlungen mit automatischer Zuordnung zur Vertrauenskasse |
@@ -67,9 +67,11 @@ zwischen Lager und Kühlschrank. Stattdessen trägt man bei jeder Zählung
 direkt ein, wie viel seit der letzten Zählung verbraucht/verkauft wurde
 (`ZaehlungVerbrauch`) — das ist bei der überschaubaren Menge an Artikeln
 einfacher als ein Bestandsabgleich. `Beleg`/`BelegPosition` dokumentieren
-den Einkauf (Wareneinsatz); der Gesamtbetrag eines Belegs fließt in den
-informativen Gewinn-Wert der Auswertung ein (siehe "Rechenlogik" unten),
-nicht aber in die Kassendifferenz.
+den Einkauf (Wareneinsatz, z.B. "10x Wasser"); der Einkauf ist immer eine
+private Einlage von Nick (es gibt bewusst kein "Bezahlt von"-Feld, da der
+Einkauf nie aus der Vertrauenskasse selbst bezahlt wird) und fließt deshalb
+in **keine** Kassenberechnung ein — weder in Soll-Kasse noch in die
+Kassendifferenz noch in den Bargeld-Vorschlag (siehe "Rechenlogik" unten).
 
 Pfand ist absichtlich **nicht** Teil des Datenmodells: Einkauf und
 Pfand-Rückerstattung laufen immer privat und komplett außerhalb der Kasse,
@@ -119,29 +121,37 @@ Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
 - Solange im Zeitraum noch ungeklärte PayPal-Zahlungen liegen (Klärungsliste),
   markiert die Auswertung das Ergebnis als **vorläufig**: die Bar-Differenz
   kann dann normal negativ sein, das ist kein Alarmsignal.
-- Einkaufsbelege (`BelegPosition`) gehen **nicht** in die Kassendifferenz ein,
-  rein dokumentarisch (Wareneinsatz) — ihr Gesamtbetrag fließt nur in den
-  separat ausgewiesenen Gewinn (siehe unten).
+- Einkaufsbelege (`Beleg`/`BelegPosition`) gehen **nicht** in Soll-Kasse,
+  Kassendifferenz oder den Bargeld-Vorschlag ein — rein dokumentarisch
+  (Wareneinsatz, immer private Einlage von Nick, siehe oben).
 - Für Zeiträume über mehrere Zählungen (Monatsauswertung, CSV-Export) summiert
   `berechne_zeitraum(zaehlungen)` einfach die Einzelergebnisse jeder Zählung.
 
-### Gewinn, Einkaufswert, Freigetränke-Wert (informativ)
+### Bargeld-Vorschlag (Schritt 2 der Zählung)
 
-Zusätzlich zur Kassendifferenz zeigt die Auswertung einen **ungefähren
-Gewinn**, berechnet aus den im selben Zeitraum erfassten Einkäufen (`Beleg`,
-Seite "Einkäufe", `/beleg/neu/`):
+Beim Erfassen einer Zählung wird zunächst nur der Verbrauch eingetragen
+(Schritt 1). Erst danach (Schritt 2, "Bargeld bestätigen") zeigt die Kasse
+einen vorausgefüllten Vorschlag, wie viel jetzt im Kasten liegen müsste — der
+Nutzer bestätigt ihn oder korrigiert ihn auf das tatsächlich gezählte
+Bargeld:
 
-- `Einkaufswert = Σ Beleg.gesamtbetrag` aller Belege seit der letzten Zählung
-- `Gewinn = Soll-Kasse − Einkaufswert`
+- `Bargeld-Vorschlag = Bargeld(letzte Zählung) + Soll-Kasse + Einlagen − Entnahmen + fremde Bargeldeingänge − PayPal-Anteil`
+
+Einlagen/fremde Bargeldeingänge erhöhen den Vorschlag (physisch mehr Geld in
+der Kasse), Entnahmen und der PayPal-Anteil senken ihn (Geld raus bzw. nie
+physisch in die Kasse gelangt). Einkaufsbelege fließen **nicht** in diesen
+Vorschlag ein (siehe oben) — ein Einkauf verändert nie, wie viel Bargeld in
+der Kasse erwartet wird.
+
+### Einkäufe und Freigetränke-Wert (informativ)
+
+Zusätzlich zeigt die Auswertung zwei rein informative Werte, die in keine der
+obigen Berechnungen einfließen:
+
+- `Einkaufswert = Σ Beleg.gesamtbetrag` aller im Zeitraum erfassten Belege
+  (Seite "Einkäufe", `/beleg/neu/`) — inklusive der Angabe, was gekauft wurde.
 - `Freigetränke-Wert = Σ Freigetränke(i) × Verkaufspreis(i)` — zeigt, wie viel
-  Umsatz durch ausgegebene Freigetränke verschenkt wurde
-
-Diese drei Werte sind **rein informativ** und fließen nicht in Soll-Kasse,
-Ist-Kasse oder Kassendifferenz ein — ein fehlender oder ungenauer Beleg
-verändert also nie, ob die Kasse stimmt. "Ungefähr", weil der Einkaufswert
-nur so genau ist wie die tatsächlich erfassten Belege (z.B. wenn ein Einkauf
-vergessen wird) und nicht verbrauchsgenau einem bestimmten Zeitraum
-zugeordnet werden kann.
+  Umsatz durch ausgegebene Freigetränke verschenkt wurde.
 
 Es gibt bewusst **keine** Leergut-/Pfand-Differenzrechnung: Einkauf und
 Pfand-Rückgabe sind private Angelegenheiten von Nick und fließen nie durch
@@ -210,11 +220,13 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
      Antippen zählt hoch, Minus-Symbol oder langes Drücken wieder runter,
      Zählstand live sichtbar. Beim Speichern wird daraus direkt der
      Soll-Betrag berechnet.
-  2. **Bargeld bestätigen** (`/zaehlung/<id>/bargeld/`): zeigt den gerade
-     berechneten Soll-Betrag vorausgefüllt in einem großen Zahlenfeld — das
-     tatsächlich gezählte Bargeld in der Kasse wird damit entweder einfach
-     bestätigt (wenn es stimmt) oder auf den abweichenden Wert korrigiert.
-     Kein zweites, unabhängiges Eintippen eines Betrags mehr nötig.
+  2. **Bargeld bestätigen** (`/zaehlung/<id>/bargeld/`): zeigt den Bargeld-
+     Vorschlag (vorheriges Bargeld + Soll-Umsatz, siehe "Rechenlogik")
+     vorausgefüllt in einem großen Zahlenfeld, inklusive Aufschlüsselung der
+     einzelnen Bestandteile — das tatsächlich gezählte Bargeld in der Kasse
+     wird damit entweder einfach bestätigt (wenn es stimmt) oder auf den
+     abweichenden Wert korrigiert. Kein zweites, unabhängiges Eintippen eines
+     Betrags mehr nötig.
 
   Wird Schritt 2 übersprungen (z.B. Browser geschlossen), bleibt das Bargeld
   der Zählung leer. Auf der Startseite erscheint dafür ein Hinweis "Bargeld
@@ -226,16 +238,17 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
 - **Kassenbewegung** (`/kassenbewegung/neu/`): Einlage/Entnahme/fremder
   Bargeldeingang über ein großes Zahlenfeld erfassen, darunter die
   Vertrauenskassenliste (chronologisches Journal).
-- **Einkäufe** (`/beleg/neu/`): Einkaufsbelege direkt im Haupt-UI erfassen
-  (Datum, Händler, Gesamtbetrag, optional Beleg-Scan hochladen) — ohne Admin.
-  Zeigt den Einkaufswert des laufenden Monats sowie eine Liste der zuletzt
-  erfassten Belege. Einzelne Positionen je Artikel können bei Bedarf weiterhin
-  in der Verwaltung (Admin) ergänzt werden.
+- **Einkäufe** (`/beleg/neu/`): Einkaufsbelege direkt im Haupt-UI erfassen —
+  Datum, Händler, Gesamtbetrag, optional Beleg-Scan, plus Kachel-Oberfläche
+  darunter für "was wurde gekauft" (z.B. "10x Wasser"). Legt automatisch
+  `BelegPosition`-Einträge an (Einzelpreis = `Getraenk.warenpreis`). Zeigt den
+  Einkaufswert des laufenden Monats sowie eine Liste der zuletzt erfassten
+  Belege inkl. Inhalt.
 - **Auswertung** (`/auswertung/`): eine Zählung auswählen (Standard: die
   letzte), zeigt sofort ihr Ergebnis — Soll-Kasse, Zusammensetzung des
-  Bar-Anteils, PayPal-Anteil, Kassendifferenz sowie den ungefähren Gewinn,
-  den Einkaufswert der erfassten Belege und den Wert ausgegebener
-  Freigetränke. Kein Start/Ende-Picker nötig, jede Zählung steht für sich.
+  Bar-Anteils, PayPal-Anteil, Kassendifferenz sowie (rein informativ) den
+  Einkaufswert der erfassten Belege und den Wert ausgegebener Freigetränke.
+  Kein Start/Ende-Picker nötig, jede Zählung steht für sich.
 - **Monatsauswertung** (`/auswertung/monat/`): alle Zählungen eines Monats
   plus Gesamtergebnis (Summe aller Einzelergebnisse des Monats).
 - **PayPal-Abgleich** (`/paypal/`): neue Zahlungen erfassen (automatische

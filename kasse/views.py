@@ -26,6 +26,7 @@ from .forms import (
 )
 from .models import (
     Beleg,
+    BelegPosition,
     Freigetraenk,
     GesperrterMonatError,
     Getraenk,
@@ -117,7 +118,7 @@ def zaehlung_bargeld(request, zaehlung_id):
         initial_bargeld = (
             zaehlung.bargeld_gezaehlt
             if zaehlung.bargeld_gezaehlt is not None
-            else result.soll_kasse
+            else result.bargeld_vorschlag
         )
         form = BargeldBestaetigenForm(
             instance=zaehlung, initial={"bargeld_gezaehlt": initial_bargeld}
@@ -202,10 +203,22 @@ def kassenbewegung_neu(request):
 
 @login_required
 def beleg_neu(request):
+    artikel = list(Getraenk.objects.filter(aktiv=True).order_by("name"))
+
     if request.method == "POST":
         form = BelegForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
+            with transaction.atomic():
+                beleg = form.save()
+                for getraenk in artikel:
+                    anzahl = _int_aus_post(request.POST, f"anzahl_{getraenk.id}")
+                    if anzahl > 0:
+                        BelegPosition.objects.create(
+                            beleg=beleg,
+                            getraenk=getraenk,
+                            anzahl=anzahl,
+                            einzelpreis=getraenk.warenpreis,
+                        )
             messages.success(request, "Beleg gespeichert.")
             return redirect(reverse("kasse:beleg_neu"))
     else:
@@ -222,12 +235,13 @@ def beleg_neu(request):
         (b.gesamtbetrag for b in monatsbelege), Decimal("0")
     )
 
-    belege = Beleg.objects.all()[:50]
+    belege = Beleg.objects.all().prefetch_related("positionen__getraenk")[:50]
     return render(
         request,
         "kasse/beleg_form.html",
         {
             "form": form,
+            "artikel": artikel,
             "belege": belege,
             "einkaufswert_monat": einkaufswert_monat,
         },

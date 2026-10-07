@@ -3,15 +3,50 @@
 {% block content %}
   <h1>Bargeld bestätigen</h1>
   <p class="muted">Zählung {{ zaehlung.belegnummer }} ({{ zaehlung.datum }}) – der
-    Verbrauch ist gespeichert. Aus den eingetragenen Mengen ergibt sich
-    folgender Soll-Betrag. Bitte zähle das Bargeld in der Kasse nach und
-    bestätige den Betrag oder korrigiere ihn auf den tatsächlich gezählten
+    Verbrauch ist gespeichert. Daraus ergibt sich, wie viel jetzt in der Kasse
+    liegen müsste. Bitte zähle das Bargeld in der Kasse nach und bestätige den
+    vorgeschlagenen Betrag oder korrigiere ihn auf den tatsächlich gezählten
     Wert.</p>
 
   <div class="card">
-    <div class="summary-item">
-      <div class="muted">Soll-Kasse (berechnet aus dem Verbrauch)</div>
-      <div class="value">{{ result.soll_kasse }} €</div>
+    <h2>Wie sich der Vorschlag zusammensetzt</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="muted">Bisheriger Kassenbestand{% if result.vorherige %} ({{ result.vorherige.belegnummer }}){% endif %}</div>
+        <div class="value">{{ result.vorherige.bargeld_gezaehlt|default:"0,00" }} €</div>
+      </div>
+      <div class="summary-item">
+        <div class="muted">+ Soll-Umsatz seit dieser Zählung</div>
+        <div class="value">{{ result.soll_kasse }} €</div>
+      </div>
+      {% if result.einlagen %}
+        <div class="summary-item">
+          <div class="muted">+ Einlagen</div>
+          <div class="value">{{ result.einlagen }} €</div>
+        </div>
+      {% endif %}
+      {% if result.entnahmen %}
+        <div class="summary-item">
+          <div class="muted">− Entnahmen</div>
+          <div class="value">{{ result.entnahmen }} €</div>
+        </div>
+      {% endif %}
+      {% if result.fremde_bargeldeingaenge %}
+        <div class="summary-item">
+          <div class="muted">+ Fremde Bargeldeingänge</div>
+          <div class="value">{{ result.fremde_bargeldeingaenge }} €</div>
+        </div>
+      {% endif %}
+      {% if result.paypal_anteil %}
+        <div class="summary-item">
+          <div class="muted">− bereits per PayPal bezahlt</div>
+          <div class="value">{{ result.paypal_anteil }} €</div>
+        </div>
+      {% endif %}
+      <div class="summary-item">
+        <div class="muted">= vorgeschlagener Kassenbestand</div>
+        <div class="value">{{ result.bargeld_vorschlag }} €</div>
+      </div>
     </div>
   </div>
 

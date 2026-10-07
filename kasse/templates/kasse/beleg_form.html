@@ -1,19 +1,38 @@
 {% extends "kasse/base.html" %}
+{% load static %}
 {% block title %}Einkäufe – Vertrauenskasse{% endblock %}
 {% block content %}
   <h1>Einkäufe (Belege)</h1>
   <p class="muted">Jeder Einkaufsbeleg (z.B. Getränkekiste) wird hier mit dem
-    Gesamtbetrag erfasst. Der Einkaufswert fließt nicht in die Kassendifferenz
-    ein, sondern nur in den ungefähren Gewinn (Soll-Kasse − Einkaufswert), der
-    in der Auswertung angezeigt wird.</p>
+    Gesamtbetrag erfasst – der Einkauf ist immer eine private Einlage von dir
+    und fließt deshalb in keine Berechnung der Kasse ein (weder Soll-Kasse
+    noch Kassendifferenz). Trag unten noch ein, was genau gekauft wurde, damit
+    der Einkauf dokumentiert ist.</p>
 
   <div class="card">
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="beleg-form">
       {% csrf_token %}
       {% if form.non_field_errors %}
         <p class="negative">{{ form.non_field_errors }}</p>
       {% endif %}
       {{ form.as_p }}
+
+      {% if artikel %}
+        <p class="muted">Was wurde gekauft?</p>
+        <div class="kachel-grid">
+          {% for getraenk in artikel %}
+            <div class="kachel" data-min="0">
+              <button type="button" class="kachel-minus" aria-label="{{ getraenk.name }} verringern">−</button>
+              <div class="kachel-tap" role="button" tabindex="0">
+                <div class="kachel-label">{{ getraenk.name }}</div>
+                <div class="kachel-value">0</div>
+              </div>
+              <input type="hidden" name="anzahl_{{ getraenk.id }}" class="kachel-input" value="0">
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
       <button type="submit">Beleg speichern</button>
     </form>
   </div>
@@ -29,7 +48,7 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr><th>Datum</th><th>Händler</th><th>Gesamtbetrag</th><th>Scan</th></tr>
+            <tr><th>Datum</th><th>Händler</th><th>Gesamtbetrag</th><th>Was gekauft</th><th>Scan</th></tr>
           </thead>
           <tbody>
             {% for b in belege %}
@@ -37,6 +56,13 @@
                 <td>{{ b.datum }}</td>
                 <td>{{ b.haendler|default:"–" }}</td>
                 <td>{{ b.gesamtbetrag }} €</td>
+                <td>
+                  {% for p in b.positionen.all %}
+                    {{ p.anzahl }}x {{ p.getraenk.name }}{% if not forloop.last %}, {% endif %}
+                  {% empty %}
+                    –
+                  {% endfor %}
+                </td>
                 <td>
                   {% if b.dateipfad %}
                     <a href="{% url 'kasse:media' b.dateipfad.name %}" target="_blank">ansehen</a>
@@ -53,4 +79,8 @@
       <p class="muted">Noch keine Belege erfasst.</p>
     {% endif %}
   </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'kasse/kachel.js' %}"></script>
 {% endblock %}

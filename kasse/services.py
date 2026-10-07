@@ -50,7 +50,7 @@ class Auswertung:
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
-    gewinn: Decimal = Decimal("0")
+    bargeld_vorschlag: Decimal = Decimal("0")
 
 
 def vorherige_zaehlung(zaehlung: Zaehlung):
@@ -163,8 +163,9 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     auswertung.ist_kasse = auswertung.bar_anteil + auswertung.paypal_anteil
     auswertung.kassendifferenz = auswertung.ist_kasse - auswertung.soll_kasse
 
-    # Einkaufswert/Gewinn: rein informativ, fliesst nicht in Soll-/Ist-Kasse
-    # oder die Kassendifferenz ein (siehe README).
+    # Einkaufswert: rein informativ (Einkaeufe sind immer private Einlagen von
+    # Nick, siehe Beleg-Docstring) - fliesst nicht in Soll-/Ist-Kasse oder die
+    # Kassendifferenz ein (siehe README).
     belege_filter = Beleg.objects.filter(datum__lte=zaehlung.datum)
     if start_datum:
         belege_filter = belege_filter.filter(datum__gt=start_datum)
@@ -173,7 +174,26 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     auswertung.einkaufswert = sum(
         (b.gesamtbetrag for b in belege), Decimal("0")
     )
-    auswertung.gewinn = auswertung.soll_kasse - auswertung.einkaufswert
+
+    # Vorschlag fuer das zu zaehlende Bargeld (Schritt 2 der Zaehlung): der
+    # Betrag, der bei einer Kassendifferenz von 0 jetzt in der Kasse liegen
+    # muesste - vorheriges Bargeld plus den Soll-Umsatz dieses Zeitraums,
+    # bereinigt um Kassenbewegungen (Einlagen/fremde Eingaenge erhoehen,
+    # Entnahmen senken das physische Bargeld) und um den PayPal-Anteil (der
+    # nie physisch in der Kasse landet).
+    vorheriges_bargeld = (
+        vorherige.bargeld_gezaehlt
+        if vorherige and vorherige.bargeld_gezaehlt is not None
+        else Decimal("0")
+    )
+    auswertung.bargeld_vorschlag = (
+        vorheriges_bargeld
+        + auswertung.soll_kasse
+        + auswertung.einlagen
+        - auswertung.entnahmen
+        + auswertung.fremde_bargeldeingaenge
+        - auswertung.paypal_anteil
+    )
 
     return auswertung
 
@@ -197,7 +217,6 @@ class ZeitraumAuswertung:
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
-    gewinn: Decimal = Decimal("0")
 
 
 def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
@@ -247,5 +266,4 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
     )
     zeitraum.ist_kasse = zeitraum.bar_anteil + zeitraum.paypal_anteil
     zeitraum.kassendifferenz = zeitraum.ist_kasse - zeitraum.soll_kasse
-    zeitraum.gewinn = zeitraum.soll_kasse - zeitraum.einkaufswert
     return zeitraum
