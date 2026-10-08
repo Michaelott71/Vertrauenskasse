@@ -100,6 +100,10 @@ keine neuen fachlichen Konzepte):
   möglich" technisch durchzusetzen (gilt für `Zaehlung` selbst inkl.
   `bargeld_gezaehlt`, `ZaehlungVerbrauch`, `Freigetraenk`, `Kassenbewegung`
   und `Beleg`).
+- `erstellt_am` auf `Zaehlung`, `Kassenbewegung`, `Freigetraenk` und `Beleg`:
+  wird automatisch beim Speichern gesetzt, nicht vom Nutzer. Nötig, damit sich
+  Ereignisse am **selben Kalendertag** wie eine Zählung noch eindeutig
+  zeitlich einordnen lassen (siehe "Rechenlogik" → Zeitraum-Zuordnung).
 
 ## Rechenlogik
 
@@ -142,6 +146,20 @@ Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
   (Wareneinsatz, immer private Einlage von Nick, siehe oben).
 - Für Zeiträume über mehrere Zählungen (Monatsauswertung, CSV-Export) summiert
   `berechne_zeitraum(zaehlungen)` einfach die Einzelergebnisse jeder Zählung.
+
+### Zeitraum-Zuordnung bei gleichem Kalendertag
+
+`Kassenbewegung`, `Freigetraenk` und `Beleg` werden anhand ihres Datums einer
+Zählungsperiode zugeordnet (alles zwischen der vorherigen und der aktuellen
+Zählung). Fallen mehrere Ereignisse auf **denselben Kalendertag** wie eine
+Zählung, reicht das Datum allein nicht aus, um zu entscheiden, ob ein
+Ereignis noch "davor" oder schon "danach" passiert ist. Deshalb trägt jede
+dieser Tabellen zusätzlich `erstellt_am` (automatisch beim Speichern
+gesetzt) — bei gleichem Datum entscheidet die tatsächliche Erfassungs-
+reihenfolge. Ohne das würde z.B. eine Kassenbewegung, die erst **nach**
+einer bereits bestätigten Zählung gebucht wird, deren längst abgeschlossenes
+Ergebnis rückwirkend verändern, obwohl sie zum Zeitpunkt der Zählung noch
+gar nicht existierte.
 
 ### Bargeld-Vorschlag (Schritt 2 der Zählung)
 

@@ -283,6 +283,54 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.bargeld_vorschlag, ergebnis.soll_kasse)
 
 
+class GleicherTagReihenfolgeTests(TestCase):
+    """Wenn mehrere Zaehlungen/Kassenbewegungen auf denselben Kalendertag
+    fallen, muss die tatsaechliche Erfassungsreihenfolge entscheiden, nicht
+    nur das Datum - sonst wuerde eine Kassenbewegung, die erst NACH einer
+    bereits bestaetigten Zaehlung gebucht wird, deren Ergebnis rueckwirkend
+    veraendern (genau das vom Nutzer gemeldete Szenario)."""
+
+    def setUp(self):
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50")
+        )
+
+    def test_kassenbewegung_nach_zaehlung_wirkt_sich_nicht_rueckwirkend_aus(self):
+        z1 = _zaehlung("2026-10-08", "0")
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-10-08", betrag=Decimal("35.00")
+        )
+        ergebnis = berechne_auswertung(z1)
+        self.assertEqual(ergebnis.einlagen, Decimal("0"))
+        self.assertEqual(ergebnis.bar_anteil, Decimal("0"))
+
+    def test_kassenbewegung_vor_zaehlung_zaehlt_noch_zu_deren_zeitraum(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-10-08", betrag=Decimal("35.00")
+        )
+        z1 = _zaehlung("2026-10-08", "0")
+        ergebnis = berechne_auswertung(z1)
+        self.assertEqual(ergebnis.einlagen, Decimal("35.00"))
+        self.assertEqual(ergebnis.bar_anteil, Decimal("-35.00"))
+
+    def test_kassenbewegung_zwischen_zwei_zaehlungen_am_selben_tag(self):
+        z1 = _zaehlung("2026-10-08", "0")
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-10-08", betrag=Decimal("35.00")
+        )
+        z2 = _zaehlung("2026-10-08", "50.00")
+        _verbrauch(z2, self.wasser, 10)  # 10 * 1.50 = 15.00 Soll
+
+        e1 = berechne_auswertung(z1)
+        e2 = berechne_auswertung(z2)
+        self.assertEqual(e1.einlagen, Decimal("0"))
+        self.assertEqual(e1.bar_anteil, Decimal("0"))
+        self.assertEqual(e2.einlagen, Decimal("35.00"))
+        # bargeld_differenz = 50 - 0 = 50; bar_anteil = 50 - 35 = 15 = Soll
+        self.assertEqual(e2.bar_anteil, Decimal("15.00"))
+        self.assertEqual(e2.kassendifferenz, Decimal("0"))
+
+
 class ZeitraumAuswertungTests(TestCase):
     def test_summiert_mehrere_zaehlungen(self):
         getraenk = Getraenk.objects.create(

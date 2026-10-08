@@ -69,12 +69,32 @@ def vorherige_zaehlung(zaehlung: Zaehlung):
     )
 
 
+def _im_zeitraum(queryset, vorherige, zaehlung):
+    """Schraenkt eine Queryset (Modell braucht `datum` und `erstellt_am`) auf
+    den Zeitraum zwischen `vorherige` (exklusiv) und `zaehlung` (inklusiv)
+    ein. Bei gleichem Kalendertag wie eine der beiden Zaehlungen entscheidet
+    zusaetzlich die Erfassungsreihenfolge (`erstellt_am`) - sonst liesse sich
+    z.B. eine Kassenbewegung, die erst NACH einer bereits bestaetigten
+    Zaehlung am selben Tag gebucht wird, nicht von einer vor dieser Zaehlung
+    unterscheiden und wuerde faelschlich deren (schon abgeschlossenes)
+    Ergebnis rueckwirkend veraendern."""
+    obergrenze = Q(datum__lt=zaehlung.datum) | Q(
+        datum=zaehlung.datum, erstellt_am__lte=zaehlung.erstellt_am
+    )
+    queryset = queryset.filter(obergrenze)
+    if vorherige:
+        untergrenze = Q(datum__gt=vorherige.datum) | Q(
+            datum=vorherige.datum, erstellt_am__gt=vorherige.erstellt_am
+        )
+        queryset = queryset.filter(untergrenze)
+    return queryset
+
+
 def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     """Berechnet Soll/Ist-Kasse fuer den Zeitraum seit der letzten Zaehlung bis
     einschliesslich `zaehlung`, je Artikel direkt aus dem eingetragenen
     Verbrauch (kein Bestandsvergleich)."""
     vorherige = vorherige_zaehlung(zaehlung)
-    start_datum = vorherige.datum if vorherige else None
 
     verbraeuche = {
         v.getraenk_id: v.verbraucht
@@ -83,11 +103,9 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     getraenk_ids = set(verbraeuche)
     getraenke = {g.id: g for g in Getraenk.objects.filter(id__in=getraenk_ids)}
 
-    freigetraenke_filter = Freigetraenk.objects.filter(
-        datum__lte=zaehlung.datum, getraenk_id__in=getraenk_ids
+    freigetraenke_filter = _im_zeitraum(
+        Freigetraenk.objects.filter(getraenk_id__in=getraenk_ids), vorherige, zaehlung
     )
-    if start_datum:
-        freigetraenke_filter = freigetraenke_filter.filter(datum__gt=start_datum)
     freigetraenke_je_getraenk = dict(
         freigetraenke_filter.values("getraenk_id")
         .annotate(summe=Sum("anzahl"))
@@ -123,9 +141,7 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         (vorherige.bargeld_gezaehlt or Decimal("0")) if vorherige else Decimal("0")
     )
 
-    bewegungen_filter = Kassenbewegung.objects.filter(datum__lte=zaehlung.datum)
-    if start_datum:
-        bewegungen_filter = bewegungen_filter.filter(datum__gt=start_datum)
+    bewegungen_filter = _im_zeitraum(Kassenbewegung.objects.all(), vorherige, zaehlung)
     bewegungen = list(bewegungen_filter.order_by("datum", "id"))
     auswertung.kassenbewegungen = bewegungen
     for bewegung in bewegungen:
@@ -159,8 +175,8 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     )
 
     paypal_im_zeitraum = PaypalZahlung.objects.filter(datum__lte=zaehlung.datum)
-    if start_datum:
-        paypal_im_zeitraum = paypal_im_zeitraum.filter(datum__gt=start_datum)
+    if vorherige:
+        paypal_im_zeitraum = paypal_im_zeitraum.filter(datum__gt=vorherige.datum)
     auswertung.vorlaeufig = paypal_im_zeitraum.filter(
         ist_getraenke_zahlung__isnull=True
     ).exists()
@@ -171,9 +187,7 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     # Einkaufswert: rein informativ (Einkaeufe sind immer private Einlagen von
     # Nick, siehe Beleg-Docstring) - fliesst nicht in Soll-/Ist-Kasse oder die
     # Kassendifferenz ein (siehe README).
-    belege_filter = Beleg.objects.filter(datum__lte=zaehlung.datum)
-    if start_datum:
-        belege_filter = belege_filter.filter(datum__gt=start_datum)
+    belege_filter = _im_zeitraum(Beleg.objects.all(), vorherige, zaehlung)
     belege = list(belege_filter.order_by("datum", "id"))
     auswertung.belege = belege
     auswertung.einkaufswert = sum(

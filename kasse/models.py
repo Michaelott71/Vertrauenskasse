@@ -66,6 +66,12 @@ class Zaehlung(models.Model):
         blank=True,
         help_text="Gezaehltes Bargeld in der Kasse bei dieser Zaehlung",
     )
+    # Erfassungszeitpunkt (nicht vom Nutzer gesetzt): wird zusaetzlich zum
+    # Datum als Tie-Breaker gebraucht, wenn mehrere Zaehlungen/Kassen-
+    # bewegungen/Freigetraenke/Belege auf denselben Kalendertag fallen - sonst
+    # liesse sich nicht bestimmen, was zeitlich vor oder nach einer Zaehlung
+    # passiert ist. Siehe README, Abschnitt "Abweichungen vom Datenmodell".
+    erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
 
     class Meta:
         ordering = ["-datum", "-id"]
@@ -145,6 +151,9 @@ class Beleg(models.Model):
     dateipfad = models.FileField(upload_to="belege/%Y/%m/", blank=True)
     gesamtbetrag = models.DecimalField(max_digits=9, decimal_places=2)
     haendler = models.CharField(max_length=150, blank=True)
+    # Siehe Zaehlung.erstellt_am: Tie-Breaker fuer Zaehlungs-Zeitraeume bei
+    # gleichem Datum.
+    erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
 
     class Meta:
         ordering = ["-datum", "-id"]
@@ -189,6 +198,9 @@ class Freigetraenk(models.Model):
     datum = models.DateField()
     anzahl = models.PositiveIntegerField()
     kommentar = models.CharField(max_length=255, blank=True)
+    # Siehe Zaehlung.erstellt_am: Tie-Breaker fuer Zaehlungs-Zeitraeume bei
+    # gleichem Datum.
+    erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
 
     class Meta:
         ordering = ["-datum", "-id"]
@@ -228,6 +240,9 @@ class Kassenbewegung(models.Model):
         "und vergibt nur ihre eigenen VK-Nummern).",
     )
     notiz = models.CharField(max_length=255, blank=True)
+    # Siehe Zaehlung.erstellt_am: Tie-Breaker fuer Zaehlungs-Zeitraeume bei
+    # gleichem Datum.
+    erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
 
     class Meta:
         ordering = ["-datum", "-id"]
