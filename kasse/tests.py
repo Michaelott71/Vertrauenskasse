@@ -1,5 +1,6 @@
 import csv
 import io
+from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -730,7 +731,9 @@ class ZaehlungBargeldViewTests(TestCase):
             reverse("kasse:zaehlung_bargeld", args=[self.zaehlung.pk]),
             {"bargeld_gezaehlt": "12.50"},
         )
-        self.assertRedirects(response, reverse("kasse:home"))
+        self.assertRedirects(
+            response, reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk])
+        )
         self.zaehlung.refresh_from_db()
         self.assertEqual(self.zaehlung.bargeld_gezaehlt, Decimal("12.50"))
 
@@ -756,6 +759,48 @@ class ZaehlungBargeldViewTests(TestCase):
         self.assertIsNone(self.zaehlung.bargeld_gezaehlt)
 
 
+class ZaehlungDifferenzViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+        self.client.login(username="tester", password="pw12345678")
+        self.zaehlung = Zaehlung.objects.create(
+            datum="2026-06-01", bargeld_gezaehlt=Decimal("12.50")
+        )
+        _verbrauch(self.zaehlung, self.wasser, 10)  # Soll 15.00, Differenz -2.50
+
+    def test_zeigt_kassendifferenz_und_freigetraenke_link_mit_datum(self):
+        response = self.client.get(
+            reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk])
+        )
+        self.assertContains(response, "-2,50")
+        self.assertContains(
+            response,
+            f"{reverse('kasse:freigetraenk_neu')}?datum=2026-06-01",
+        )
+
+    def test_post_speichert_kommentar_und_leitet_zur_startseite(self):
+        response = self.client.post(
+            reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk]),
+            {"notiz": "Gast hat nicht bezahlt"},
+        )
+        self.assertRedirects(response, reverse("kasse:home"))
+        self.zaehlung.refresh_from_db()
+        self.assertEqual(self.zaehlung.notiz, "Gast hat nicht bezahlt")
+
+    def test_post_in_exportiertem_monat_wird_blockiert(self):
+        MonatsExport.objects.create(jahr=2026, monat=6)
+        response = self.client.post(
+            reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk]),
+            {"notiz": "nachtraeglich"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.zaehlung.refresh_from_db()
+        self.assertEqual(self.zaehlung.notiz, "")
+
+
 class FreigetraenkNeuViewTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="tester", password="pw12345678")
@@ -763,6 +808,14 @@ class FreigetraenkNeuViewTests(TestCase):
             name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
         )
         self.client.login(username="tester", password="pw12345678")
+
+    def test_get_mit_datum_param_belegt_datumsfeld_vor(self):
+        response = self.client.get(
+            reverse("kasse:freigetraenk_neu"), {"datum": "2026-07-04"}
+        )
+        self.assertEqual(
+            response.context["meta_form"].initial["datum"], date(2026, 7, 4)
+        )
 
     def test_post_erstellt_freigetraenk(self):
         response = self.client.post(

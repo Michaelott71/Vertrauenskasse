@@ -177,6 +177,15 @@ physisch in die Kasse gelangt). Einkaufsbelege fließen **nicht** in diesen
 Vorschlag ein (siehe oben) — ein Einkauf verändert nie, wie viel Bargeld in
 der Kasse erwartet wird.
 
+Weicht der bestätigte Betrag vom Vorschlag ab, führt die Kasse direkt zu
+einer dritten Seite **"Differenz klären"** (`/zaehlung/<id>/differenz/`):
+zeigt die Kassendifferenz und bietet zwei Wege an, sie zu klären — entweder
+direkt zu "Freigetränke erfassen" springen (Datum der Zählung ist
+vorausgefüllt), falls etwas verschenkt wurde, oder einfach einen Kommentar
+für den Steuerberater hinterlassen (schreibt ebenfalls in `Zaehlung.notiz`,
+dieselbe Erklärung wie auf der Auswertungsseite). Stimmt der bestätigte
+Betrag mit dem Vorschlag überein, entfällt dieser Schritt.
+
 ### Einkäufe und Freigetränke-Wert (informativ)
 
 Zusätzlich zeigt die Auswertung zwei rein informative Werte, die in keine der
@@ -279,6 +288,11 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
      wird damit entweder einfach bestätigt (wenn es stimmt) oder auf den
      abweichenden Wert korrigiert. Kein zweites, unabhängiges Eintippen eines
      Betrags mehr nötig.
+  3. **Differenz klären** (`/zaehlung/<id>/differenz/`), nur wenn der
+     bestätigte Betrag vom Vorschlag abweicht: Kassendifferenz anzeigen und
+     direkt anbieten, entweder Freigetränke nachzutragen (Datum
+     vorausgefüllt) oder einen Kommentar für den Steuerberater zu
+     hinterlassen.
 
   Wird Schritt 2 übersprungen (z.B. Browser geschlossen), bleibt das Bargeld
   der Zählung leer. Auf der Startseite erscheint dafür ein Hinweis "Bargeld

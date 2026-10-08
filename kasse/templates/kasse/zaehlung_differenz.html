@@ -1,0 +1,43 @@
+{% extends "kasse/base.html" %}
+{% block title %}Differenz klären – Vertrauenskasse{% endblock %}
+{% block content %}
+  <h1>Differenz klären</h1>
+  <p class="muted">Zählung {{ zaehlung.belegnummer }} ({{ zaehlung.datum }}) – das
+    gezählte Bargeld weicht vom Vorschlag ab.</p>
+
+  <div class="card">
+    <div class="summary-item">
+      <div class="muted">Kassendifferenz</div>
+      <div class="value {% if result.kassendifferenz < 0 %}negative{% else %}positive{% endif %}">
+        {{ result.kassendifferenz }} €
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Was möchtest du tun?</h2>
+
+    <p>
+      Wurde etwas verschenkt (z.B. eine Runde aufs Haus)? Dann trag es als
+      Freigetränk ein – das erklärt die Differenz direkt über den
+      tatsächlichen Verbrauch.
+    </p>
+    <a class="btn" href="{% url 'kasse:freigetraenk_neu' %}?datum={{ zaehlung.datum|date:'Y-m-d' }}">
+      Freigetränke erfassen
+    </a>
+
+    <p style="margin-top: 1.5rem;">
+      Oder einfach einen Kommentar für den Steuerberater hinterlassen, warum
+      es eine Differenz gibt:
+    </p>
+    <form method="post">
+      {% csrf_token %}
+      <textarea name="notiz" rows="3" placeholder="z.B. Gast hat nicht bezahlt, Wechselgeld-Fehler, …">{{ zaehlung.notiz }}</textarea>
+      <button type="submit" class="btn-save">Kommentar speichern</button>
+    </form>
+
+    <p class="muted" style="margin-top: 1.5rem;">
+      <a href="{% url 'kasse:home' %}">Später klären, jetzt zur Startseite</a>
+    </p>
+  </div>
+{% endblock %}

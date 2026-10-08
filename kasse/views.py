@@ -10,6 +10,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from . import matching
 from .export import erzeuge_csv, markiere_als_exportiert
@@ -109,10 +110,15 @@ def zaehlung_bargeld(request, zaehlung_id):
     if request.method == "POST":
         form = BargeldBestaetigenForm(request.POST, instance=zaehlung)
         if form.is_valid():
+            vorschlag = result.bargeld_vorschlag
             form.save()
             messages.success(
                 request, f"Zählung {zaehlung.belegnummer} wurde gespeichert."
             )
+            if zaehlung.bargeld_gezaehlt != vorschlag:
+                return redirect(
+                    reverse("kasse:zaehlung_differenz", args=[zaehlung.pk])
+                )
             return redirect(reverse("kasse:home"))
     else:
         initial_bargeld = (
@@ -128,6 +134,33 @@ def zaehlung_bargeld(request, zaehlung_id):
         request,
         "kasse/zaehlung_bargeld.html",
         {"zaehlung": zaehlung, "result": result, "form": form},
+    )
+
+
+@login_required
+def zaehlung_differenz(request, zaehlung_id):
+    """Wird direkt nach dem Bestaetigen eines vom Vorschlag abweichenden
+    Bargeldbetrags angezeigt: bietet an, die Differenz entweder ueber
+    Freigetraenke zu erklaeren oder einfach als Kommentar fuer den
+    Steuerberater festzuhalten."""
+    zaehlung = get_object_or_404(Zaehlung, pk=zaehlung_id)
+
+    if request.method == "POST":
+        zaehlung.notiz = request.POST.get("notiz", "")
+        try:
+            zaehlung.clean()
+        except GesperrterMonatError as exc:
+            messages.error(request, str(exc))
+        else:
+            zaehlung.save()
+            messages.success(request, "Kommentar gespeichert.")
+            return redirect(reverse("kasse:home"))
+
+    result = berechne_auswertung(zaehlung)
+    return render(
+        request,
+        "kasse/zaehlung_differenz.html",
+        {"zaehlung": zaehlung, "result": result},
     )
 
 
@@ -173,7 +206,10 @@ def freigetraenk_neu(request):
                     messages.info(request, "Keine Mengen eingegeben, nichts gespeichert.")
                 return redirect(reverse("kasse:home"))
     else:
-        meta_form = FreigetraenkMetaForm(initial={"datum": timezone.localdate()})
+        angefordertes_datum = parse_date(request.GET.get("datum", "") or "")
+        meta_form = FreigetraenkMetaForm(
+            initial={"datum": angefordertes_datum or timezone.localdate()}
+        )
 
     return render(
         request,
