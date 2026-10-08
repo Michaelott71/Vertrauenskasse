@@ -7,9 +7,13 @@ behaelt). Optional komplett auf eine einzige Bar-Zeile fuer den ganzen Monat
 aggregierbar (`aggregiert=True`).
 """
 
+import calendar
 import csv
 import io
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
+
+from django.urls import reverse
 
 from .models import Kassenbewegung, MonatsExport, PaypalZahlung, Zaehlung
 from .services import berechne_auswertung, berechne_zeitraum, vorherige_zaehlung
@@ -86,6 +90,56 @@ def _zaehlungen_im_monat(jahr, monat):
             "datum", "id"
         )
     )
+
+
+def pruefe_monat_vollstaendig_gezaehlt(jahr, monat):
+    """Verhindert einen fehlerhaften Monatsabschluss: wird z.B. erst am 4.
+    des Folgemonats gezaehlt, landet der seit dem Monatsletzten angefallene
+    Verbrauch (inkl. der letzten Tage des ABGESCHLOSSENEN Monats) komplett
+    im neuen Monat, weil eine Zaehlung immer vollstaendig dem Monat ihres
+    eigenen Datums zugerechnet wird. Deshalb muss der exportierte Monat mit
+    einer Zaehlung GENAU auf den letzten Kalendertag enden, deren Bargeld
+    bereits bestaetigt ist - sonst keine saubere Monatsgrenze.
+
+    Gibt ein Dict {"nachricht", "aktion_url", "aktion_text"} zurueck, oder
+    None, wenn alles passt (auch wenn der Monat komplett ohne Zaehlung ist -
+    dann gibt es nichts abzugleichen)."""
+    letzter_tag = calendar.monthrange(jahr, monat)[1]
+    monat_ende = date(jahr, monat, letzter_tag)
+
+    zaehlungen_im_monat = Zaehlung.objects.filter(datum__year=jahr, datum__month=monat)
+    if not zaehlungen_im_monat.exists():
+        return None
+
+    letzte = zaehlungen_im_monat.order_by("-datum", "-id").first()
+    if letzte.datum != monat_ende:
+        return {
+            "nachricht": (
+                f"Für {monat:02d}/{jahr} fehlt eine Zählung genau auf den "
+                f"Monatsletzten ({monat_ende.strftime('%d.%m.%Y')}) - die "
+                f"letzte erfasste Zählung ist vom "
+                f"{letzte.datum.strftime('%d.%m.%Y')}. Ohne eine Zählung "
+                "genau zum Monatsende würde Verbrauch über den Monatswechsel "
+                "hinweg dem falschen Monat zugerechnet. Bitte zuerst eine "
+                "(notfalls auch mit 0 Verbrauch) Zählung für den "
+                "Monatsletzten erfassen, bevor dieser Monat abgeschlossen "
+                "wird."
+            ),
+            "aktion_url": f"{reverse('kasse:zaehlung_neu')}?datum={monat_ende.isoformat()}",
+            "aktion_text": f"Zählung für den {monat_ende.strftime('%d.%m.%Y')} erfassen",
+        }
+    if letzte.bargeld_gezaehlt is None:
+        return {
+            "nachricht": (
+                f"Die Zählung vom {letzte.datum.strftime('%d.%m.%Y')} "
+                f"(Monatsende {monat:02d}/{jahr}) hat noch kein bestätigtes "
+                "Bargeld. Bitte zuerst im zweiten Schritt ('Bargeld "
+                "bestätigen') abschließen, bevor dieser Monat exportiert wird."
+            ),
+            "aktion_url": reverse("kasse:zaehlung_bargeld", args=[letzte.pk]),
+            "aktion_text": "Bargeld jetzt bestätigen",
+        }
+    return None
 
 
 def erzeuge_zeilen(jahr, monat, aggregiert=False):

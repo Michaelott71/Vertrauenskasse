@@ -327,7 +327,39 @@ er automatisch erkannt.
 
 Der Export markiert den Monat als exportiert (`MonatsExport`) — danach sind
 Korrekturen für diesen Monat nicht mehr rückwirkend möglich (Freigetränke,
-Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
+Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst. Da
+das nicht mehr rückgängig zu machen ist, prüft die Seite "CSV-Export" vor
+jedem Export zwei Dinge:
+
+### 1. Zählung genau auf den Monatsletzten Pflicht (`pruefe_monat_vollstaendig_gezaehlt`)
+
+Eine Zählung deckt immer den Zeitraum seit der letzten Zählung bis
+einschließlich ihres eigenen Datums ab und wird komplett dem Monat ihres
+eigenen Datums zugerechnet. Wird z.B. nicht am 30.06., sondern erst am
+04.07. gezählt, würde der gesamte Verbrauch seit dem 30.06. (also auch die
+letzten Tage des Juni) fälschlich komplett dem Juli zugerechnet — der Juni
+wäre dann zu niedrig, der Juli zu hoch ausgewiesen.
+
+Deshalb lässt sich ein Monat nur exportieren, wenn die letzte Zählung dieses
+Monats **genau auf den letzten Kalendertag** fällt und ihr Bargeld bereits
+bestätigt ist (ein Monat ganz ohne jede Zählung ist unproblematisch, da es
+nichts abzugleichen gibt). Fehlt diese Zählung, zeigt die Export-Seite einen
+Block "Dieser Monat kann noch nicht abgeschlossen werden" mit einer direkten
+Schaltfläche, die genau diese Zählung mit vorausgefülltem Datum anlegt (auch
+mit 0 Verbrauch möglich, wenn an dem Tag nichts passiert ist — sie dient
+dann nur als sauberer Monatsabschluss-Schnitt). Fehlt nur die
+Bargeld-Bestätigung, führt die Schaltfläche stattdessen direkt zu "Bargeld
+bestätigen" für diese Zählung.
+
+### 2. Sicherheitsabfrage beim zu frühen Abschließen
+
+Ist der gewählte Monat noch nicht vorbei (heutiges Datum liegt noch im
+gewählten Monat oder davor), zeigt die Export-Seite statt des direkten
+Downloads eine Sicherheitsabfrage ("Heute ist erst der TT.MM.JJJJ … Wirklich
+jetzt schon abschließen?"). Erst ein zweiter, expliziter Klick auf "Ja,
+trotzdem jetzt abschließen" führt den Export tatsächlich aus — so passiert
+ein versehentlicher Abschluss eines noch laufenden Monats nicht durch einen
+einzelnen Klick.
 
 ## Workflows
 

@@ -2,13 +2,14 @@ import csv
 import io
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from . import matching
-from .export import erzeuge_csv, markiere_als_exportiert
+from .export import erzeuge_csv, markiere_als_exportiert, pruefe_monat_vollstaendig_gezaehlt
 from .models import (
     Beleg,
     BelegPosition,
@@ -799,6 +800,114 @@ class CsvExportTests(TestCase):
         self.assertTrue(any("Endbestand" in w for w in warnungen))
         rows = list(csv.DictReader(io.StringIO(csv_text), delimiter=";"))
         self.assertFalse(any(r["Artikel"] == "Endbestand" for r in rows))
+
+
+class MonatVollstaendigGezaehltTests(TestCase):
+    """Reproduziert den vom Nutzer gemeldeten Fall: wird erst am 4. des
+    Folgemonats gezaehlt, landet der Verbrauch der letzten Tage des
+    abgeschlossenen Monats faelschlich komplett im neuen Monat. Deshalb darf
+    ein Monat nur mit einer Zaehlung GENAU auf den Monatsletzten
+    abgeschlossen werden."""
+
+    def setUp(self):
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+
+    def test_monat_ohne_jede_zaehlung_ist_unproblematisch(self):
+        self.assertIsNone(pruefe_monat_vollstaendig_gezaehlt(2026, 6))
+
+    def test_letzte_zaehlung_nicht_auf_monatsletzten_wird_blockiert(self):
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-15", "20.00")  # nicht der 30.06.
+        fehler = pruefe_monat_vollstaendig_gezaehlt(2026, 6)
+        self.assertIsNotNone(fehler)
+        self.assertIn("30.06.2026", fehler["nachricht"])
+        self.assertIn("2026-06-30", fehler["aktion_url"])
+
+    def test_zaehlung_am_vierten_des_folgemonats_blockiert_vormonat(self):
+        # Exakt der vom Nutzer beschriebene Fall: zuletzt am 4. des
+        # Folgemonats gezaehlt, nicht am Letzten des Vormonats.
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-07-04", "50.00")
+        fehler = pruefe_monat_vollstaendig_gezaehlt(2026, 6)
+        self.assertIsNotNone(fehler)
+
+    def test_zaehlung_auf_monatsletzten_ohne_bestaetigtes_bargeld_wird_blockiert(self):
+        _zaehlung("2026-06-01", "0")
+        letzte = Zaehlung.objects.create(datum="2026-06-30")
+        fehler = pruefe_monat_vollstaendig_gezaehlt(2026, 6)
+        self.assertIsNotNone(fehler)
+        self.assertIn(reverse("kasse:zaehlung_bargeld", args=[letzte.pk]), fehler["aktion_url"])
+
+    def test_zaehlung_auf_monatsletzten_mit_bargeld_ist_vollstaendig(self):
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-30", "20.00")
+        self.assertIsNone(pruefe_monat_vollstaendig_gezaehlt(2026, 6))
+
+
+class ExportCsvViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="tester", password="pw12345678")
+        self.client.login(username="tester", password="pw12345678")
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+
+    def _post(self, monat="2026-06", aggregiert=False, extra=None):
+        data = {"monat": monat, "bestaetigen": "on"}
+        if aggregiert:
+            data["aggregiert"] = "on"
+        if extra:
+            data.update(extra)
+        return self.client.post(reverse("kasse:export_csv"), data)
+
+    def test_ohne_zaehlung_auf_monatsletzten_wird_export_blockiert(self):
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-15", "20.00")  # nicht der Monatsletzte
+        response = self._post()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "kann noch nicht abgeschlossen werden")
+        self.assertFalse(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
+
+    def test_zeigt_aktions_link_zum_fehlenden_monatsletzten(self):
+        _zaehlung("2026-06-01", "0")
+        response = self._post()
+        self.assertContains(
+            response, f"{reverse('kasse:zaehlung_neu')}?datum=2026-06-30"
+        )
+
+    @patch("kasse.views.timezone.localdate")
+    def test_export_eines_bereits_vergangenen_monats_ohne_fruehwarnung(self, mock_localdate):
+        mock_localdate.return_value = date(2026, 8, 1)
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-30", "20.00")
+        response = self._post()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertTrue(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
+
+    @patch("kasse.views.timezone.localdate")
+    def test_export_des_laufenden_monats_zeigt_fruehwarnung_und_blockiert_zunaechst(
+        self, mock_localdate
+    ):
+        mock_localdate.return_value = date(2026, 6, 30)
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-30", "20.00")
+        response = self._post()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "noch nicht vollständig vorbei")
+        self.assertFalse(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
+
+    @patch("kasse.views.timezone.localdate")
+    def test_fruehwarnung_bestaetigen_fuehrt_export_dann_durch(self, mock_localdate):
+        mock_localdate.return_value = date(2026, 6, 30)
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-30", "20.00")
+        response = self._post(extra={"fruehzeitig_bestaetigt": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertTrue(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
 
 
 class ZaehlungNeuViewTests(TestCase):

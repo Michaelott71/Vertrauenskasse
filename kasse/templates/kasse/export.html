@@ -9,13 +9,38 @@
     rückwirkend.
   </p>
 
-  <div class="card">
-    <form method="post">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <button type="submit">CSV exportieren</button>
-    </form>
-  </div>
+  {% if monat_fehler %}
+    <div class="card" style="border: 2px solid var(--color-negative);">
+      <p><strong>⚠ Dieser Monat kann noch nicht abgeschlossen werden:</strong></p>
+      <p>{{ monat_fehler.nachricht }}</p>
+      <a class="btn" href="{{ monat_fehler.aktion_url }}">{{ monat_fehler.aktion_text }}</a>
+    </div>
+  {% elif fruehwarnung %}
+    <div class="card" style="border: 2px solid var(--color-negative);">
+      <p><strong>⚠ Achtung:</strong> {{ fruehwarnung }}</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="monat" value="{{ form.cleaned_data.monat|date:'Y-m' }}">
+        {% if form.cleaned_data.aggregiert %}
+          <input type="hidden" name="aggregiert" value="on">
+        {% endif %}
+        <input type="hidden" name="bestaetigen" value="on">
+        <input type="hidden" name="fruehzeitig_bestaetigt" value="1">
+        <button type="submit" class="btn-secondary">Ja, trotzdem jetzt abschließen</button>
+      </form>
+      <p class="muted" style="margin-top: 0.5rem;">
+        <a href="{% url 'kasse:export_csv' %}">Abbrechen</a>
+      </p>
+    </div>
+  {% else %}
+    <div class="card">
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">CSV exportieren</button>
+      </form>
+    </div>
+  {% endif %}
 
   <div class="card">
     <h2>Bereits exportierte Monate</h2>

@@ -13,7 +13,11 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from . import matching
-from .export import erzeuge_csv, markiere_als_exportiert
+from .export import (
+    erzeuge_csv,
+    markiere_als_exportiert,
+    pruefe_monat_vollstaendig_gezaehlt,
+)
 from .forms import (
     BargeldBestaetigenForm,
     BelegForm,
@@ -88,7 +92,10 @@ def zaehlung_neu(request):
                     )
             return redirect(reverse("kasse:zaehlung_bargeld", args=[zaehlung.pk]))
     else:
-        meta_form = ZaehlungMetaForm(initial={"datum": timezone.localdate()})
+        angefordertes_datum = parse_date(request.GET.get("datum", "") or "")
+        meta_form = ZaehlungMetaForm(
+            initial={"datum": angefordertes_datum or timezone.localdate()}
+        )
 
     return render(
         request,
@@ -422,28 +429,57 @@ def paypal_abgleich(request):
 @login_required
 def export_csv(request):
     bereits_exportiert = MonatsExport.objects.order_by("-jahr", "-monat")[:12]
+    fruehwarnung = None
+    monat_fehler = None
 
     if request.method == "POST":
         form = ExportForm(request.POST)
         if form.is_valid():
             monat_letzter_tag = form.cleaned_data["monat"]
             jahr, monat = monat_letzter_tag.year, monat_letzter_tag.month
-            dateiname, csv_text, warnungen = erzeuge_csv(
-                jahr, monat, aggregiert=form.cleaned_data["aggregiert"]
-            )
-            markiere_als_exportiert(jahr, monat)
-            for warnung in warnungen:
-                messages.warning(request, warnung)
-            response = HttpResponse(csv_text, content_type="text/csv; charset=utf-8")
-            response["Content-Disposition"] = f'attachment; filename="{dateiname}"'
-            return response
+
+            monat_fehler = pruefe_monat_vollstaendig_gezaehlt(jahr, monat)
+            if not monat_fehler:
+                heute = timezone.localdate()
+                # "Folgemonat" noch nicht erreicht -> Sicherheitsabfrage, damit
+                # nicht versehentlich ein noch laufender Monat abgeschlossen
+                # wird, fuer den rueckwirkend keine Korrekturen mehr moeglich
+                # waeren.
+                ist_frueh = (heute.year, heute.month) <= (jahr, monat)
+                if ist_frueh and "fruehzeitig_bestaetigt" not in request.POST:
+                    fruehwarnung = (
+                        f"Heute ist erst der {heute.strftime('%d.%m.%Y')} - der "
+                        f"Monat {monat:02d}/{jahr} ist also noch nicht "
+                        "vollständig vorbei (oder gerade erst). Nach dem Export "
+                        "sind rückwirkende Korrekturen für diesen Monat nicht "
+                        "mehr möglich. Wirklich jetzt schon abschließen?"
+                    )
+                else:
+                    dateiname, csv_text, warnungen = erzeuge_csv(
+                        jahr, monat, aggregiert=form.cleaned_data["aggregiert"]
+                    )
+                    markiere_als_exportiert(jahr, monat)
+                    for warnung in warnungen:
+                        messages.warning(request, warnung)
+                    response = HttpResponse(
+                        csv_text, content_type="text/csv; charset=utf-8"
+                    )
+                    response["Content-Disposition"] = (
+                        f'attachment; filename="{dateiname}"'
+                    )
+                    return response
     else:
         form = ExportForm(initial={"monat": timezone.localdate().replace(day=1)})
 
     return render(
         request,
         "kasse/export.html",
-        {"form": form, "bereits_exportiert": bereits_exportiert},
+        {
+            "form": form,
+            "bereits_exportiert": bereits_exportiert,
+            "fruehwarnung": fruehwarnung,
+            "monat_fehler": monat_fehler,
+        },
     )
 
 
