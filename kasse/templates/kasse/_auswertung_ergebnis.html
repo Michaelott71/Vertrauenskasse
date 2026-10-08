@@ -12,11 +12,13 @@
   <div class="summary-grid">
     <div class="summary-item">
       <div class="muted">Soll-Kassenbestand</div>
-      <div class="value">{{ result.soll_kasse }} €</div>
+      <div class="value">{{ result.bargeld_vorschlag }} €</div>
     </div>
     <div class="summary-item">
       <div class="muted">Ist-Kassenbestand</div>
-      <div class="value">{{ result.ist_kasse }} €</div>
+      <div class="value">
+        {% if result.neuer_bargeldbestand is not None %}{{ result.neuer_bargeldbestand }} €{% else %}noch nicht erfasst{% endif %}
+      </div>
     </div>
     <div class="summary-item">
       <div class="muted">Kassendifferenz{% if result.vorlaeufig %} (vorläufig){% endif %}</div>
@@ -88,26 +90,19 @@
 </div>
 
 <div class="card">
-  <h2>Wie sich der Bar-Anteil zusammensetzt</h2>
+  <h2>Kassenbestand-Verlauf</h2>
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="muted">Bargeld-Differenz (gezählt)</div>
-      <div class="value">{{ result.bargeld_differenz }} €</div>
+      <div class="muted">Alter Bargeldbestand{% if result.vorherige %} ({{ result.vorherige.belegnummer }}){% endif %}</div>
+      <div class="value">{{ result.alter_bargeldbestand }} €</div>
     </div>
     <div class="summary-item">
-      <div class="muted">− Netto aus Kassenbewegungen</div>
-      <div class="value">{{ result.netto_kassenbewegungen }} €</div>
-    </div>
-    <div class="summary-item">
-      <div class="muted">= Bar-Anteil aus Getränkeverkauf</div>
-      <div class="value">{{ result.bar_anteil }} €</div>
+      <div class="muted">Neuer Bargeldbestand (gezählt)</div>
+      <div class="value">
+        {% if result.neuer_bargeldbestand is not None %}{{ result.neuer_bargeldbestand }} €{% else %}noch nicht erfasst{% endif %}
+      </div>
     </div>
   </div>
-  <p class="muted">
-    Netto aus Kassenbewegungen = Einlagen + fremde Bargeldeingänge − Entnahmen
-    (Geld, das rein kam, minus Geld, das rausgenommen wurde – nichts davon
-    stammt aus Getränkeverkauf, deshalb wird es herausgerechnet).
-  </p>
   {% if result.kassenbewegungen %}
     <div class="table-scroll">
       <table>

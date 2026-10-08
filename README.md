@@ -115,7 +115,8 @@ Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
 
 - `Verkauft(i) = Verbraucht_eingetragen(i) − Freigetränke(i)` (direkt
   eingetragener Wert, kein Bestandsvergleich)
-- `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)` (Verkaufspreis ohne Pfand-Anteil)
+- `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)` (Verkaufspreis ohne Pfand-Anteil,
+  reiner Umsatz dieses Zeitraums, keine absolute Bestandsgröße)
 - `Bargeld-Differenz = bargeld_gezählt(jetzt) − bargeld_gezählt(letzte Zählung)`
   (0 statt letzterem, wenn dies die allererste Zählung ist)
 - `Netto aus Kassenbewegungen = Einlagen + fremde Bargeldeingänge − Entnahmen`
@@ -125,14 +126,31 @@ Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
 - `Bar-Anteil (aus Getränkeverkauf) = Bargeld-Differenz − Netto aus Kassenbewegungen`
   (ohne diese Bereinigung würde z.B. eine Entnahme wie ein Fehlbetrag
   aussehen, eine private Einlage oder ein fremder Bargeldeingang hingegen wie
-  zusätzlicher Getränkeumsatz)
+  zusätzlicher Getränkeumsatz) — intern weiterhin berechnet, in der
+  Auswertung aber nicht mehr als eigene Zeile angezeigt (siehe unten).
 - `PayPal-Anteil = Σ PayPal-Zahlungen mit ist_Getränke_Zahlung=True, die dieser Zählung zugeordnet sind`
-- `Ist-Kassenbestand = Bar-Anteil + PayPal-Anteil`
-- `Kassendifferenz = Ist-Kassenbestand − Soll-Kassenbestand` (keine Rundungstoleranz, exakt ausgewiesen)
-- Anzeige in der Auswertung: zuerst Soll-Kassenbestand und Ist-Kassenbestand
-  nebeneinander, dann die Kassendifferenz, danach die Zusammensetzung des
-  Bar-Anteils (Bargeld-Differenz, Netto aus Kassenbewegungen) — damit online
-  bezahlte Getränke oder eine Bargeld-Entnahme nie wie ein Fehlbetrag aussehen.
+- `Kassendifferenz = (Bar-Anteil + PayPal-Anteil) − Soll-Kasse` (keine
+  Rundungstoleranz, exakt ausgewiesen)
+
+**Anzeige in der Auswertung — zwei absolute Beträge statt Umsatz-Deltas**:
+Die Begriffe "Soll-Kasse" und "Bar-Anteil" sind reine **Zeitraum-Umsätze**
+(Deltas), keine Kontostände — eine Starteinlage von 35 € würde dort z.B. nie
+auftauchen, obwohl sie tatsächlich physisch in der Kasse liegt. Deshalb
+zeigt die Auswertung oben stattdessen zwei **absolute Kassenbestände**:
+
+- `Soll-Kassenbestand = Bargeld(letzte Zählung) + Soll-Kasse + Netto aus Kassenbewegungen − PayPal-Anteil`
+  — der gleiche Wert, der schon beim "Bargeld bestätigen" als Vorschlag
+  diente (siehe unten), also was jetzt im Kasten liegen müsste.
+- `Ist-Kassenbestand = bargeld_gezählt` — genau der tatsächlich gezählte,
+  absolute Betrag (zeigt z.B. die 35 € Starteinlage korrekt an).
+- `Kassendifferenz = Ist-Kassenbestand − Soll-Kassenbestand` — rechnerisch
+  identisch zur obigen Definition über Bar-Anteil/Soll-Kasse, nur aus den
+  beiden absoluten Beständen hergeleitet statt aus den Zeitraum-Deltas.
+
+Darunter eine Karte **"Kassenbestand-Verlauf"**: alter Bargeldbestand (der
+vorherigen Zählung) → Kassenbewegungen in diesem Zeitraum (Tabelle) → neuer
+Bargeldbestand (gezählt) — ein einfacher, nachvollziehbarer Kontoauszug ohne
+Soll/Ist-Mathematik.
 - Solange im Zeitraum noch ungeklärte PayPal-Zahlungen liegen (Klärungsliste),
   markiert die Auswertung das Ergebnis als **vorläufig**: die Bar-Differenz
   kann dann normal negativ sein, das ist kein Alarmsignal.

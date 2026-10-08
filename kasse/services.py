@@ -53,6 +53,8 @@ class Auswertung:
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
     bargeld_vorschlag: Decimal = Decimal("0")
+    alter_bargeldbestand: Decimal = Decimal("0")
+    neuer_bargeldbestand: Decimal | None = None
 
 
 def vorherige_zaehlung(zaehlung: Zaehlung):
@@ -214,6 +216,12 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         - auswertung.paypal_anteil
     )
 
+    # Einfacher Kassenbestand-Verlauf (alter Bargeldbestand -> Kassen-
+    # bewegungen -> tatsaechlich gezaehlter neuer Bargeldbestand), unabhaengig
+    # von der Soll/Ist-Aufschluesselung oben - rein die physischen Betraege.
+    auswertung.alter_bargeldbestand = vorheriges_bargeld
+    auswertung.neuer_bargeldbestand = zaehlung.bargeld_gezaehlt
+
     return auswertung
 
 
@@ -228,6 +236,7 @@ class ZeitraumAuswertung:
     einlagen: Decimal = Decimal("0")
     entnahmen: Decimal = Decimal("0")
     fremde_bargeldeingaenge: Decimal = Decimal("0")
+    kassenbewegungen: list = field(default_factory=list)
     netto_kassenbewegungen: Decimal = Decimal("0")
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
@@ -237,6 +246,9 @@ class ZeitraumAuswertung:
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
+    bargeld_vorschlag: Decimal = Decimal("0")
+    alter_bargeldbestand: Decimal = Decimal("0")
+    neuer_bargeldbestand: Decimal | None = None
 
 
 def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
@@ -257,6 +269,7 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.einlagen += ergebnis.einlagen
         zeitraum.entnahmen += ergebnis.entnahmen
         zeitraum.fremde_bargeldeingaenge += ergebnis.fremde_bargeldeingaenge
+        zeitraum.kassenbewegungen += ergebnis.kassenbewegungen
         zeitraum.netto_kassenbewegungen += ergebnis.netto_kassenbewegungen
         zeitraum.bar_anteil += ergebnis.bar_anteil
         zeitraum.paypal_anteil += ergebnis.paypal_anteil
@@ -287,6 +300,18 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
     )
     zeitraum.ist_kasse = zeitraum.bar_anteil + zeitraum.paypal_anteil
     zeitraum.kassendifferenz = zeitraum.ist_kasse - zeitraum.soll_kasse
+
+    # Kassenbestand-Verlauf fuer den gesamten Zeitraum: alter Bargeldbestand
+    # der ersten Zaehlung bis zum tatsaechlich gezaehlten Bestand der letzten
+    # Zaehlung im Zeitraum.
+    zeitraum.alter_bargeldbestand = zeitraum.einzelergebnisse[0].alter_bargeldbestand
+    zeitraum.neuer_bargeldbestand = zeitraum.einzelergebnisse[-1].neuer_bargeldbestand
+    zeitraum.bargeld_vorschlag = (
+        zeitraum.alter_bargeldbestand
+        + zeitraum.soll_kasse
+        + zeitraum.netto_kassenbewegungen
+        - zeitraum.paypal_anteil
+    )
     return zeitraum
 
 

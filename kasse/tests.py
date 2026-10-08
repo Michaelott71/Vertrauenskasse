@@ -284,6 +284,64 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.bargeld_vorschlag, ergebnis.soll_kasse)
 
 
+class KassenbestandVerlaufTests(TestCase):
+    """Reproduziert den vom Nutzer gemeldeten Fall: eine Starteinlage muss im
+    'Ist-Kassenbestand' als tatsaechlich vorhandenes Geld sichtbar sein, nicht
+    als 0 erscheinen, nur weil sie nicht aus Getraenkeverkauf stammt."""
+
+    def setUp(self):
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50")
+        )
+
+    def test_starteinlage_erscheint_als_ist_und_soll_kassenbestand(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-01", betrag=Decimal("35.00")
+        )
+        z1 = _zaehlung("2026-06-01", "35.00")
+        ergebnis = berechne_auswertung(z1)
+
+        self.assertEqual(ergebnis.alter_bargeldbestand, Decimal("0"))
+        self.assertEqual(ergebnis.neuer_bargeldbestand, Decimal("35.00"))
+        self.assertEqual(ergebnis.bargeld_vorschlag, Decimal("35.00"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("0"))
+
+    def test_alter_und_neuer_bargeldbestand_bei_zweiter_zaehlung(self):
+        z1 = _zaehlung("2026-06-01", "35.00")
+        z2 = _zaehlung("2026-06-10", "50.00")
+        _verbrauch(z2, self.wasser, 10)  # 10 * 1.50 = 15.00 Soll
+
+        ergebnis = berechne_auswertung(z2)
+        self.assertEqual(ergebnis.alter_bargeldbestand, Decimal("35.00"))
+        self.assertEqual(ergebnis.neuer_bargeldbestand, Decimal("50.00"))
+        self.assertEqual(ergebnis.bargeld_vorschlag, Decimal("50.00"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("0"))
+
+    def test_neuer_bargeldbestand_ist_none_wenn_noch_nicht_bestaetigt(self):
+        z1 = _zaehlung("2026-06-01", "35.00")
+        z2 = Zaehlung.objects.create(datum="2026-06-10")
+        _verbrauch(z2, self.wasser, 2)
+
+        ergebnis = berechne_auswertung(z2)
+        self.assertIsNone(ergebnis.neuer_bargeldbestand)
+
+    def test_zeitraum_verwendet_ersten_alten_und_letzten_neuen_bargeldbestand(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-01", betrag=Decimal("35.00")
+        )
+        z1 = _zaehlung("2026-06-01", "35.00")
+        z2 = _zaehlung("2026-06-10", "50.00")
+        z3 = _zaehlung("2026-06-20", "65.00")
+        _verbrauch(z2, self.wasser, 10)  # Soll 15.00
+        _verbrauch(z3, self.wasser, 10)  # Soll 15.00
+
+        zeitraum = berechne_zeitraum([z1, z2, z3])
+        self.assertEqual(zeitraum.alter_bargeldbestand, Decimal("0"))
+        self.assertEqual(zeitraum.neuer_bargeldbestand, Decimal("65.00"))
+        self.assertEqual(zeitraum.bargeld_vorschlag, Decimal("65.00"))
+        self.assertEqual(zeitraum.kassendifferenz, Decimal("0"))
+
+
 class GleicherTagReihenfolgeTests(TestCase):
     """Wenn mehrere Zaehlungen/Kassenbewegungen auf denselben Kalendertag
     fallen, muss die tatsaechliche Erfassungsreihenfolge entscheiden, nicht
@@ -975,6 +1033,20 @@ class AuswertungViewTests(TestCase):
         self.assertContains(response, "Soll-Kassenbestand")
         self.assertContains(response, "Ist-Kassenbestand")
         self.assertNotContains(response, "PayPal-Anteil (Ist)")
+
+    def test_starteinlage_erscheint_als_ist_kassenbestand(self):
+        Kassenbewegung.objects.create(
+            art=Kassenbewegung.Art.EINLAGE, datum="2026-06-01", betrag=Decimal("35.00")
+        )
+        zaehlung = _zaehlung("2026-06-01", "35.00")
+        response = self.client.get(reverse("kasse:auswertung"), {"zaehlung": zaehlung.pk})
+        self.assertContains(response, "Kassenbestand-Verlauf")
+        self.assertNotContains(response, "Wie sich der Bar-Anteil zusammensetzt")
+        # "35,00" muss als Ist-Kassenbestand auftauchen, nicht nur versteckt
+        # im Kassenbewegungen-Journal.
+        self.assertContains(response, "Soll-Kassenbestand")
+        content = response.content.decode()
+        self.assertGreaterEqual(content.count("35,00"), 2)
 
     def test_auswahl_zeigt_gewaehlte_zaehlung(self):
         z1 = _zaehlung("2026-06-01", "0")
