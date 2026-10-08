@@ -104,6 +104,39 @@ input, select, textarea {
   color: var(--color-text);
 }
 
+/* Radio-/Checkbox-Kreise sollen ihre natuerliche Groesse behalten statt wie
+   Textfelder auf 100% Breite mit Padding aufgeblasen zu werden - sonst
+   sitzen sie nicht auf einer Hoehe mit ihrem Beschriftungstext. */
+input[type="radio"],
+input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  margin: 0;
+}
+
+/* Auswahllisten wie bei RadioSelect (z.B. "Art" der Kassenbewegung): keine
+   Aufzaehlungspunkte, Kreis und Text per Flexbox sauber auf einer Hoehe. */
+form ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+form ul li {
+  margin: 0.5rem 0;
+}
+
+form ul li label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+  margin-bottom: 0;
+}
+
 /* Grosses Zahlenfeld fuer Geldbetraege, wie an einer Kasse. */
 .betrag-input-gross {
   font-size: 2rem;
