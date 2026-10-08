@@ -1,14 +1,4 @@
 <div class="card">
-  {% if result.vorlaeufig %}
-    <p class="muted">
-      ⚠ Vorläufig: für diesen Zeitraum liegen noch ungeklärte PayPal-Zahlungen vor
-      (siehe <a href="{% url 'kasse:paypal_abgleich' %}">PayPal-Abgleich</a>). Die
-      Bar-Differenz kann bis zum monatlichen Abgleich normal negativ aussehen,
-      wenn online bezahlte Getränke noch nicht als PayPal-Zahlung zugeordnet sind
-      – das ist kein Alarmsignal.
-    </p>
-  {% endif %}
-
   <div class="summary-grid">
     <div class="summary-item">
       <div class="muted">Soll-Kassenbestand</div>
@@ -21,12 +11,20 @@
       </div>
     </div>
     <div class="summary-item">
-      <div class="muted">Kassendifferenz{% if result.vorlaeufig %} (vorläufig){% endif %}</div>
+      <div class="muted">Kassendifferenz</div>
       <div class="value {% if result.kassendifferenz < 0 %}negative{% else %}positive{% endif %}">
         {{ result.kassendifferenz }} €
       </div>
     </div>
   </div>
+
+  {% if result.paypal_anteil %}
+    <p class="muted">
+      Davon vermutlich {{ result.paypal_anteil }} € per PayPal bezahlt (nicht
+      Teil des Kassenbestands, siehe <a href="{% url 'kasse:paypal_abgleich' %}">PayPal-Abgleich</a>) –
+      ggf. noch Quittung dafür ausstellen.
+    </p>
+  {% endif %}
 
   {% if aktuelle_zaehlung %}
     {% if result.kassendifferenz %}

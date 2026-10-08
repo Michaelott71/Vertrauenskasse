@@ -12,6 +12,13 @@
         {{ result.kassendifferenz }} €
       </div>
     </div>
+    {% if result.paypal_anteil %}
+      <p class="muted">
+        Zur Einordnung: in diesem Zeitraum sind laut PayPal-Abgleich bereits
+        {{ result.paypal_anteil }} € per PayPal bezahlt worden – das erklärt
+        möglicherweise einen Teil der Differenz.
+      </p>
+    {% endif %}
   </div>
 
   <div class="card">
@@ -27,12 +34,23 @@
     </a>
 
     <p style="margin-top: 1.5rem;">
-      Oder einfach einen Kommentar für den Steuerberater hinterlassen, warum
-      es eine Differenz gibt:
+      Wurde stattdessen per PayPal bezahlt? Das landet nie physisch in der
+      Kasse und erklärt die Differenz – trag dann unten kurz ein, was per
+      PayPal bezahlt wurde (als Erinnerung, dass dafür noch eine Quittung
+      geschrieben werden muss):
+    </p>
+    <button type="button" class="btn-secondary"
+            onclick="document.getElementById('id_notiz').value = 'Per PayPal bezahlt – nicht aus der Kasse. Quittung noch zu schreiben.'; document.getElementById('id_notiz').focus();">
+      Per PayPal bezahlt
+    </button>
+
+    <p style="margin-top: 1.5rem;">
+      Oder einfach einen eigenen Kommentar für den Steuerberater hinterlassen,
+      warum es eine Differenz gibt:
     </p>
     <form method="post">
       {% csrf_token %}
-      <textarea name="notiz" rows="3" placeholder="z.B. Gast hat nicht bezahlt, Wechselgeld-Fehler, …">{{ zaehlung.notiz }}</textarea>
+      <textarea id="id_notiz" name="notiz" rows="3" placeholder="z.B. Gast hat nicht bezahlt, Wechselgeld-Fehler, …">{{ zaehlung.notiz }}</textarea>
       <button type="submit" class="btn-save">Kommentar speichern</button>
     </form>
 

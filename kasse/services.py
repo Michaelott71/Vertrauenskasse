@@ -46,9 +46,7 @@ class Auswertung:
     netto_kassenbewegungen: Decimal = Decimal("0")
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
-    ist_kasse: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
-    vorlaeufig: bool = False
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
@@ -167,6 +165,13 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         auswertung.bargeld_differenz - auswertung.netto_kassenbewegungen
     )
 
+    # PayPal-Anteil: rein informativ (z.B. um zu wissen, wofuer noch eine
+    # Quittung geschrieben werden muss), hat aber nichts mit dem Kassenbestand
+    # zu tun - eine PayPal-Zahlung landet nie physisch in der Kasse und
+    # fliesst deshalb NICHT in Bar-Anteil, Bargeld-Vorschlag oder
+    # Kassendifferenz ein. Ein darueber bezahltes Getraenk zeigt sich also
+    # ganz bewusst als Kassendifferenz, die ueber "Differenz klaeren" als
+    # "Per PayPal bezahlt" dokumentiert werden kann.
     # Python-Summe statt SQL-Sum(): SQLite berechnet SUM() ueber Decimal-
     # Spalten per Gleitkomma, was Rundungsmuell wie "40,3000000000000" erzeugt.
     paypal_zahlungen = PaypalZahlung.objects.filter(
@@ -176,15 +181,7 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         (p.betrag for p in paypal_zahlungen), Decimal("0")
     )
 
-    paypal_im_zeitraum = PaypalZahlung.objects.filter(datum__lte=zaehlung.datum)
-    if vorherige:
-        paypal_im_zeitraum = paypal_im_zeitraum.filter(datum__gt=vorherige.datum)
-    auswertung.vorlaeufig = paypal_im_zeitraum.filter(
-        ist_getraenke_zahlung__isnull=True
-    ).exists()
-
-    auswertung.ist_kasse = auswertung.bar_anteil + auswertung.paypal_anteil
-    auswertung.kassendifferenz = auswertung.ist_kasse - auswertung.soll_kasse
+    auswertung.kassendifferenz = auswertung.bar_anteil - auswertung.soll_kasse
 
     # Einkaufswert: rein informativ (Einkaeufe sind immer private Einlagen von
     # Nick, siehe Beleg-Docstring) - fliesst nicht in Soll-/Ist-Kasse oder die
@@ -200,8 +197,10 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     # Betrag, der bei einer Kassendifferenz von 0 jetzt in der Kasse liegen
     # muesste - vorheriges Bargeld plus den Soll-Umsatz dieses Zeitraums,
     # bereinigt um Kassenbewegungen (Einlagen/fremde Eingaenge erhoehen,
-    # Entnahmen senken das physische Bargeld) und um den PayPal-Anteil (der
-    # nie physisch in der Kasse landet).
+    # Entnahmen senken das physische Bargeld). PayPal fliesst bewusst NICHT
+    # ein, da eine PayPal-Zahlung nie physisch in die Kasse gelangt - wurde
+    # etwas per PayPal bezahlt, zeigt sich das stattdessen als
+    # Kassendifferenz (ueber "Differenz klaeren" dokumentierbar).
     vorheriges_bargeld = (
         vorherige.bargeld_gezaehlt
         if vorherige and vorherige.bargeld_gezaehlt is not None
@@ -213,7 +212,6 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         + auswertung.einlagen
         - auswertung.entnahmen
         + auswertung.fremde_bargeldeingaenge
-        - auswertung.paypal_anteil
     )
 
     # Einfacher Kassenbestand-Verlauf (alter Bargeldbestand -> Kassen-
@@ -240,9 +238,7 @@ class ZeitraumAuswertung:
     netto_kassenbewegungen: Decimal = Decimal("0")
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
-    ist_kasse: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
-    vorlaeufig: bool = False
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
@@ -273,7 +269,6 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.netto_kassenbewegungen += ergebnis.netto_kassenbewegungen
         zeitraum.bar_anteil += ergebnis.bar_anteil
         zeitraum.paypal_anteil += ergebnis.paypal_anteil
-        zeitraum.vorlaeufig = zeitraum.vorlaeufig or ergebnis.vorlaeufig
         zeitraum.freigetraenke_wert += ergebnis.freigetraenke_wert
         zeitraum.belege += ergebnis.belege
         zeitraum.einkaufswert += ergebnis.einkaufswert
@@ -298,19 +293,17 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
     zeitraum.positionen = sorted(
         positionen_je_getraenk.values(), key=lambda p: p.getraenk.name.lower()
     )
-    zeitraum.ist_kasse = zeitraum.bar_anteil + zeitraum.paypal_anteil
-    zeitraum.kassendifferenz = zeitraum.ist_kasse - zeitraum.soll_kasse
+    zeitraum.kassendifferenz = zeitraum.bar_anteil - zeitraum.soll_kasse
 
     # Kassenbestand-Verlauf fuer den gesamten Zeitraum: alter Bargeldbestand
     # der ersten Zaehlung bis zum tatsaechlich gezaehlten Bestand der letzten
-    # Zaehlung im Zeitraum.
+    # Zaehlung im Zeitraum. PayPal fliesst bewusst nicht ein, siehe oben.
     zeitraum.alter_bargeldbestand = zeitraum.einzelergebnisse[0].alter_bargeldbestand
     zeitraum.neuer_bargeldbestand = zeitraum.einzelergebnisse[-1].neuer_bargeldbestand
     zeitraum.bargeld_vorschlag = (
         zeitraum.alter_bargeldbestand
         + zeitraum.soll_kasse
         + zeitraum.netto_kassenbewegungen
-        - zeitraum.paypal_anteil
     )
     return zeitraum
 

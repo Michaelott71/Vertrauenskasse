@@ -132,7 +132,7 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.soll_kasse, Decimal("175.00"))
         self.assertEqual(ergebnis.kassendifferenz, Decimal("-32.50"))
 
-    def test_paypal_getraenke_zahlung_erhoeht_ist_kasse(self):
+    def test_paypal_zahlung_ist_informativ_und_veraendert_kassenbestand_nicht(self):
         PaypalZahlung.objects.create(
             datum="2026-06-12", betrag=Decimal("20.00"), zaehlung=self.ende,
             paypal_transaktions_id="TX1", ist_getraenke_zahlung=True,
@@ -144,17 +144,28 @@ class AuswertungTests(TestCase):
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
         self.assertEqual(ergebnis.paypal_anteil, Decimal("20.00"))
-        self.assertEqual(ergebnis.ist_kasse, Decimal("142.50") + Decimal("20.00"))
-        self.assertFalse(ergebnis.vorlaeufig)
+        # PayPal hat nichts mit dem Kassenbestand zu tun - Bar-Anteil,
+        # Bargeld-Vorschlag und Kassendifferenz bleiben unveraendert.
+        self.assertEqual(ergebnis.bar_anteil, Decimal("142.50"))
+        self.assertEqual(ergebnis.bargeld_vorschlag, ergebnis.soll_kasse)
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("-32.50"))
 
-    def test_ungeklaerte_paypal_zahlung_macht_ergebnis_vorlaeufig(self):
+    def test_vollstaendig_per_paypal_bezahlt_zeigt_volle_kassendifferenz(self):
+        # Alles wurde per PayPal bezahlt, kein Bargeld kam dazu - das zeigt
+        # sich jetzt bewusst als Kassendifferenz (frueher wurde der
+        # PayPal-Anteil automatisch verrechnet und die Differenz verschwand).
         PaypalZahlung.objects.create(
-            datum="2026-06-12", betrag=Decimal("20.00"), paypal_transaktions_id="TX3",
+            datum="2026-06-12", betrag=Decimal("175.00"), zaehlung=self.ende,
+            paypal_transaktions_id="TXPP", ist_getraenke_zahlung=True,
         )
+        self.ende.bargeld_gezaehlt = Decimal("0.00")
+        self.ende.save()
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
-        self.assertTrue(ergebnis.vorlaeufig)
-        self.assertEqual(ergebnis.paypal_anteil, Decimal("0"))
+        self.assertEqual(ergebnis.paypal_anteil, Decimal("175.00"))
+        self.assertEqual(ergebnis.bargeld_vorschlag, Decimal("175.00"))
+        self.assertEqual(ergebnis.neuer_bargeldbestand, Decimal("0.00"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("-175.00"))
 
     def test_entnahme_wird_zur_bargelddifferenz_addiert(self):
         Kassenbewegung.objects.create(
@@ -259,7 +270,7 @@ class AuswertungTests(TestCase):
             ergebnis.bargeld_vorschlag, Decimal("50.00") + ergebnis.soll_kasse
         )
 
-    def test_bargeld_vorschlag_beruecksichtigt_kassenbewegungen_und_paypal(self):
+    def test_bargeld_vorschlag_beruecksichtigt_kassenbewegungen_nicht_paypal(self):
         Kassenbewegung.objects.create(
             art=Kassenbewegung.Art.EINLAGE, datum="2026-06-10", betrag=Decimal("20.00")
         )
@@ -272,9 +283,11 @@ class AuswertungTests(TestCase):
         )
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
+        # PayPal hat nichts mit dem Kassenbestand zu tun und fliesst deshalb
+        # NICHT in den Vorschlag ein - nur Einlagen/Entnahmen tun das.
         self.assertEqual(
             ergebnis.bargeld_vorschlag,
-            ergebnis.soll_kasse + Decimal("20.00") - Decimal("5.00") - Decimal("10.00"),
+            ergebnis.soll_kasse + Decimal("20.00") - Decimal("5.00"),
         )
 
     def test_einkaufswert_fliesst_nicht_in_bargeld_vorschlag_ein(self):
@@ -847,6 +860,17 @@ class ZaehlungDifferenzViewTests(TestCase):
         self.assertRedirects(response, reverse("kasse:home"))
         self.zaehlung.refresh_from_db()
         self.assertEqual(self.zaehlung.notiz, "Gast hat nicht bezahlt")
+
+    def test_zeigt_per_paypal_bezahlt_option_und_paypal_hinweis(self):
+        PaypalZahlung.objects.create(
+            datum="2026-06-01", betrag=Decimal("5.00"), zaehlung=self.zaehlung,
+            paypal_transaktions_id="TXD1", ist_getraenke_zahlung=True,
+        )
+        response = self.client.get(
+            reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk])
+        )
+        self.assertContains(response, "Per PayPal bezahlt")
+        self.assertContains(response, "5,00")
 
     def test_post_in_exportiertem_monat_wird_blockiert(self):
         MonatsExport.objects.create(jahr=2026, monat=6)
