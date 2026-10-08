@@ -4,7 +4,10 @@
   <h1>Monatsexport (CSV)</h1>
   <p class="muted">
     Erzeugt eine <code>JJJJ-MM_Vertrauenskasse.csv</code> (Semikolon-getrennt, UTF-8)
-    für den gewählten Monat. Muss bis zum 10. des Folgemonats erstellt sein.
+    für den gewählten Monat — optional zusammen mit den hochgeladenen
+    Beleg-Scans als <code>JJJJ-MM_Vertrauenskasse.zip</code>, zum Ausdrucken
+    und Dazulegen zur Kasse für den Steuerberater (Belege sind immer
+    Bar-Einlagen von dir). Muss bis zum 10. des Folgemonats erstellt sein.
     Achtung: nach dem Export gelten Korrekturen für diesen Monat nicht mehr
     rückwirkend.
   </p>
@@ -23,6 +26,9 @@
         <input type="hidden" name="monat" value="{{ form.cleaned_data.monat|date:'Y-m' }}">
         {% if form.cleaned_data.aggregiert %}
           <input type="hidden" name="aggregiert" value="on">
+        {% endif %}
+        {% if form.cleaned_data.mit_belegen %}
+          <input type="hidden" name="mit_belegen" value="on">
         {% endif %}
         <input type="hidden" name="bestaetigen" value="on">
         <input type="hidden" name="fruehzeitig_bestaetigt" value="1">

@@ -319,6 +319,17 @@ er automatisch erkannt.
   lückenlos nachrechnen. Hat die letzte Zählung des Monats noch kein
   bestätigtes Bargeld, fehlt der Endbestand und es gibt eine Warnung.
 
+**Beleg-Scans mit exportieren** (`erzeuge_export_zip`, Checkbox "Hochgeladene
+Beleg-Scans als ZIP mit exportieren", standardmäßig angehakt): bündelt die
+CSV mit den hochgeladenen Scans aller Belege des Monats (`Beleg.dateipfad`,
+Ordner `belege/` im ZIP, Dateiname `<Datum>_<Händler>_<ID>.<Endung>`) zu
+`JJJJ-MM_Vertrauenskasse.zip` — da ein Beleg immer eine private Bar-Einlage
+ist, lässt sich der Monat damit komplett mit seinen Papierbelegen ausdrucken
+und zur Kasse legen bzw. dem Steuerberater geben. Hat ein Beleg keinen
+hochgeladenen Scan, taucht er nicht im ZIP auf und es gibt eine Warnung, dass
+der Papierbeleg dafür separat dazugelegt werden muss. Unangehakt gibt es wie
+bisher nur die reine CSV-Datei.
+
 Der Export markiert den Monat als exportiert (`MonatsExport`) — danach sind
 Korrekturen für diesen Monat nicht mehr rückwirkend möglich, sondern werden
 als Vermerk im Folgemonat erfasst. Da
@@ -405,7 +416,8 @@ einzelnen Klick.
   plus Gesamtergebnis (Summe aller Einzelergebnisse des Monats).
 - **PayPal-Abgleich** (`/paypal/`): neue Zahlungen erfassen (automatische
   Zuordnung läuft sofort) und die Klärungsliste einmal monatlich abarbeiten.
-- **CSV-Export** (`/export/`): Monat auswählen, CSV herunterladen.
+- **CSV-Export** (`/export/`): Monat auswählen, CSV (optional als ZIP
+  zusammen mit den Beleg-Scans) herunterladen.
 - **Verwaltung** (`/admin/`): Getränke, einzelne Belegpositionen je Artikel,
   Kassenbewegungen, PayPal-Zahlungen und Stichwörter pflegen.
 

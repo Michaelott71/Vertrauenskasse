@@ -15,6 +15,7 @@ from django.utils.dateparse import parse_date
 from . import matching
 from .export import (
     erzeuge_csv,
+    erzeuge_export_zip,
     markiere_als_exportiert,
     pruefe_monat_vollstaendig_gezaehlt,
 )
@@ -398,15 +399,20 @@ def export_csv(request):
                         "mehr möglich. Wirklich jetzt schon abschließen?"
                     )
                 else:
-                    dateiname, csv_text, warnungen = erzeuge_csv(
-                        jahr, monat, aggregiert=form.cleaned_data["aggregiert"]
-                    )
+                    if form.cleaned_data["mit_belegen"]:
+                        dateiname, inhalt, warnungen = erzeuge_export_zip(
+                            jahr, monat, aggregiert=form.cleaned_data["aggregiert"]
+                        )
+                        content_type = "application/zip"
+                    else:
+                        dateiname, inhalt, warnungen = erzeuge_csv(
+                            jahr, monat, aggregiert=form.cleaned_data["aggregiert"]
+                        )
+                        content_type = "text/csv; charset=utf-8"
                     markiere_als_exportiert(jahr, monat)
                     for warnung in warnungen:
                         messages.warning(request, warnung)
-                    response = HttpResponse(
-                        csv_text, content_type="text/csv; charset=utf-8"
-                    )
+                    response = HttpResponse(inhalt, content_type=content_type)
                     response["Content-Disposition"] = (
                         f'attachment; filename="{dateiname}"'
                     )

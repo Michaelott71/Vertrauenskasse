@@ -158,6 +158,11 @@ class ExportForm(forms.Form):
         required=False,
         label="Als eine aggregierte Zeile pro Monat exportieren (statt je Zählung)",
     )
+    mit_belegen = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Hochgeladene Beleg-Scans als ZIP mit exportieren (zum Ausdrucken für den Steuerberater)",
+    )
     bestaetigen = forms.BooleanField(
         label="Mir ist bewusst, dass nach dem Export Korrekturen für diesen Monat "
         "nicht mehr rückwirkend möglich sind."

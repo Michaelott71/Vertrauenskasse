@@ -10,12 +10,13 @@ aggregierbar (`aggregiert=True`).
 import calendar
 import csv
 import io
+import zipfile
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.urls import reverse
 
-from .models import Kassenbewegung, MonatsExport, PaypalZahlung, Zaehlung
+from .models import Beleg, Kassenbewegung, MonatsExport, PaypalZahlung, Zaehlung
 from .services import berechne_auswertung, berechne_zeitraum, vorherige_zaehlung
 
 USt_SATZ = Decimal("19")
@@ -279,6 +280,39 @@ def erzeuge_csv(jahr, monat, aggregiert=False):
         writer.writerow(zeile)
 
     dateiname = f"{jahr:04d}-{monat:02d}_Vertrauenskasse.csv"
+    return dateiname, puffer.getvalue(), warnungen
+
+
+def erzeuge_export_zip(jahr, monat, aggregiert=False):
+    """Buendelt den CSV-Export mit den hochgeladenen Beleg-Scans des Monats
+    (Belege sind immer private Bar-Einlagen, siehe Beleg-Docstring) in einem
+    ZIP, damit sich der Monat komplett mit seinen Papierbelegen fuer den
+    Steuerberater zusammenstellen laesst. Gibt (dateiname, zip_bytes,
+    warnungen) zurueck."""
+    csv_dateiname, csv_text, warnungen = erzeuge_csv(jahr, monat, aggregiert=aggregiert)
+
+    belege = Beleg.objects.filter(
+        datum__year=jahr, datum__month=monat
+    ).exclude(dateipfad="").order_by("datum", "id")
+    ohne_scan = Beleg.objects.filter(datum__year=jahr, datum__month=monat, dateipfad="").count()
+    if ohne_scan:
+        warnungen.append(
+            f"{ohne_scan} Beleg(e) in diesem Monat haben keinen hochgeladenen "
+            "Scan - die Papierbelege dafuer muessen separat dazugelegt werden."
+        )
+
+    puffer = io.BytesIO()
+    with zipfile.ZipFile(puffer, "w", zipfile.ZIP_DEFLATED) as zip_datei:
+        zip_datei.writestr(csv_dateiname, csv_text)
+        for beleg in belege:
+            endung = beleg.dateipfad.name.rsplit(".", 1)[-1] if "." in beleg.dateipfad.name else "pdf"
+            name_im_zip = (
+                f"belege/{beleg.datum.isoformat()}_{beleg.haendler or 'Beleg'}_{beleg.pk}.{endung}"
+            )
+            with beleg.dateipfad.open("rb") as datei:
+                zip_datei.writestr(name_im_zip, datei.read())
+
+    dateiname = f"{jahr:04d}-{monat:02d}_Vertrauenskasse.zip"
     return dateiname, puffer.getvalue(), warnungen
 
 

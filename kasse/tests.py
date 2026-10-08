@@ -1,5 +1,6 @@
 import csv
 import io
+import zipfile
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
@@ -9,7 +10,12 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from . import matching
-from .export import erzeuge_csv, markiere_als_exportiert, pruefe_monat_vollstaendig_gezaehlt
+from .export import (
+    erzeuge_csv,
+    erzeuge_export_zip,
+    markiere_als_exportiert,
+    pruefe_monat_vollstaendig_gezaehlt,
+)
 from .models import (
     Beleg,
     BelegPosition,
@@ -758,6 +764,57 @@ class CsvExportTests(TestCase):
         self.assertFalse(any(r["Artikel"] == "Endbestand" for r in rows))
 
 
+@override_settings(MEDIA_ROOT="/tmp/vertrauenskasse-test-media-export")
+class ExportZipTests(TestCase):
+    """Reproduziert den Nutzerwunsch: hochgeladene Beleg-Scans (immer private
+    Bar-Einlagen) sollen sich zusammen mit dem CSV-Export herunterladen und
+    ausdrucken lassen, um sie als Papierbeleg zur Kasse zu legen und dem
+    Steuerberater zu geben."""
+
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.scan = SimpleUploadedFile(
+            "quittung.pdf", b"%PDF-1.4 fake", content_type="application/pdf"
+        )
+
+    def test_zip_enthaelt_csv_und_beleg_scan(self):
+        Beleg.objects.create(
+            datum="2026-06-10", gesamtbetrag=Decimal("12.00"), haendler="Getraenkemarkt",
+            dateipfad=self.scan,
+        )
+        dateiname, zip_bytes, warnungen = erzeuge_export_zip(2026, 6)
+        self.assertEqual(dateiname, "2026-06_Vertrauenskasse.zip")
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            namen = zf.namelist()
+            self.assertIn("2026-06_Vertrauenskasse.csv", namen)
+            beleg_namen = [n for n in namen if n.startswith("belege/")]
+            self.assertEqual(len(beleg_namen), 1)
+            self.assertTrue(beleg_namen[0].endswith(".pdf"))
+            self.assertEqual(zf.read(beleg_namen[0]), b"%PDF-1.4 fake")
+        self.assertEqual(warnungen, [])
+
+    def test_beleg_ohne_scan_erzeugt_warnung_und_fehlt_im_zip(self):
+        Beleg.objects.create(
+            datum="2026-06-10", gesamtbetrag=Decimal("12.00"), haendler="Ohne Scan",
+        )
+        dateiname, zip_bytes, warnungen = erzeuge_export_zip(2026, 6)
+        self.assertTrue(any("keinen hochgeladenen" in w for w in warnungen))
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            beleg_namen = [n for n in zf.namelist() if n.startswith("belege/")]
+            self.assertEqual(beleg_namen, [])
+
+    def test_beleg_aus_anderem_monat_erscheint_nicht_im_zip(self):
+        Beleg.objects.create(
+            datum="2026-07-10", gesamtbetrag=Decimal("12.00"), haendler="Juli",
+            dateipfad=self.scan,
+        )
+        _, zip_bytes, _ = erzeuge_export_zip(2026, 6)
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            beleg_namen = [n for n in zf.namelist() if n.startswith("belege/")]
+            self.assertEqual(beleg_namen, [])
+
+
 class MonatVollstaendigGezaehltTests(TestCase):
     """Reproduziert den vom Nutzer gemeldeten Fall: wird erst am 4. des
     Folgemonats gezaehlt, landet der Verbrauch der letzten Tage des
@@ -864,6 +921,16 @@ class ExportCsvViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
         self.assertTrue(MonatsExport.objects.filter(jahr=2026, monat=6).exists())
+
+    @patch("kasse.views.timezone.localdate")
+    def test_mit_belegen_angehakt_liefert_zip(self, mock_localdate):
+        mock_localdate.return_value = date(2026, 8, 1)
+        _zaehlung("2026-06-01", "0")
+        _zaehlung("2026-06-30", "20.00")
+        response = self._post(extra={"mit_belegen": "on"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/zip")
+        self.assertIn(".zip", response["Content-Disposition"])
 
 
 class ZaehlungNeuViewTests(TestCase):
