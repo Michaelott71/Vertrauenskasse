@@ -1,3 +1,4 @@
+{% load l10n %}
 <div class="card">
   <div class="summary-grid">
     <div class="summary-item">
@@ -12,11 +13,18 @@
     </div>
     <div class="summary-item">
       <div class="muted">Kassendifferenz</div>
-      <div class="value {% if result.kassendifferenz < 0 %}negative{% else %}positive{% endif %}">
+      <div class="value {% if result.kassendifferenz < 0 %}negative{% elif result.kassendifferenz > 0 %}positive{% endif %}">
         {{ result.kassendifferenz }} €
       </div>
     </div>
   </div>
+
+  {% if result.differenz_korrektur %}
+    <p class="muted">
+      ✓ Erledigt: von ursprünglich {{ result.kassendifferenz_unerklaert }} € Differenz sind
+      {{ result.differenz_korrektur }} € erklärt{% if aktuelle_zaehlung.notiz %} ({{ aktuelle_zaehlung.notiz }}){% endif %}.
+    </p>
+  {% endif %}
 
   {% if result.paypal_anteil %}
     <p class="muted">
@@ -35,6 +43,19 @@
           ⚠ Kassendifferenz erklären (erscheint in Monatsauswertung und CSV-Export, wichtig für den Steuerberater):
         </label>
         <textarea id="id_notiz_erklaerung" name="notiz" rows="2">{{ aktuelle_zaehlung.notiz }}</textarea>
+        <label for="id_korrektur_erklaerung">
+          Davon erklärter Betrag (wird von der Kassendifferenz abgezogen):
+        </label>
+        <input type="number" step="0.01" inputmode="decimal" id="id_korrektur_erklaerung"
+               name="differenz_korrektur" value="{{ result.kassendifferenz_unerklaert|unlocalize }}">
+        <button type="button" class="btn-secondary"
+                onclick="document.getElementById('id_notiz_erklaerung').value='Trinkgeld'; document.getElementById('id_korrektur_erklaerung').value='{{ result.kassendifferenz_unerklaert|unlocalize }}';">
+          Trinkgeld
+        </button>
+        <button type="button" class="btn-secondary"
+                onclick="document.getElementById('id_notiz_erklaerung').value='Per PayPal bezahlt – nicht aus der Kasse. Quittung noch zu schreiben.'; document.getElementById('id_korrektur_erklaerung').value='{{ result.kassendifferenz_unerklaert|unlocalize }}';">
+          Per PayPal bezahlt
+        </button>
         <button type="submit" name="notiz_speichern" value="1">Erklärung speichern</button>
       </form>
     {% elif aktuelle_zaehlung.notiz %}

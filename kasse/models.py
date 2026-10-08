@@ -72,6 +72,21 @@ class Zaehlung(models.Model):
     # liesse sich nicht bestimmen, was zeitlich vor oder nach einer Zaehlung
     # passiert ist. Siehe README, Abschnitt "Abweichungen vom Datenmodell".
     erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
+    # Manuelle Korrektur der Kassendifferenz dieser Zaehlung (z.B. Trinkgeld,
+    # per PayPal bezahlt). Wird direkt dieser Zaehlung zugeordnet (nicht ueber
+    # Datum/erstellt_am gesucht), damit eine bereits bestaetigte Zaehlung gezielt
+    # und ohne Seiteneffekte auf andere Zeitraeume aufgeloest werden kann. Siehe
+    # README, Abschnitt "Kassendifferenz erklaeren".
+    differenz_korrektur = models.DecimalField(
+        max_digits=9,
+        decimal_places=2,
+        default=Decimal("0"),
+        help_text=(
+            "Erklaerter Anteil der Kassendifferenz (z.B. Trinkgeld, per PayPal "
+            "bezahlt) - wird zum Soll-Kassenbestand addiert, sodass die "
+            "Kassendifferenz entsprechend sinkt."
+        ),
+    )
 
     class Meta:
         ordering = ["-datum", "-id"]

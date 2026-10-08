@@ -149,19 +149,49 @@ zeigt die Auswertung oben stattdessen zwei **absolute Kassenbestände**:
   diente (siehe unten), also was jetzt im Kasten liegen müsste (ohne PayPal).
 - `Ist-Kassenbestand = bargeld_gezählt` — genau der tatsächlich gezählte,
   absolute Betrag (zeigt z.B. die 35 € Starteinlage korrekt an).
-- `Kassendifferenz = Ist-Kassenbestand − Soll-Kassenbestand` — rechnerisch
-  identisch zur obigen Definition über Bar-Anteil/Soll-Kasse, nur aus den
-  beiden absoluten Beständen hergeleitet statt aus den Zeitraum-Deltas.
+- `Kassendifferenz = Ist-Kassenbestand − Soll-Kassenbestand` − `Zaehlung.differenz_korrektur`
+  — rechnerisch identisch zur obigen Definition über Bar-Anteil/Soll-Kasse
+  (nur aus den beiden absoluten Beständen hergeleitet statt aus den
+  Zeitraum-Deltas), zusätzlich bereinigt um eine erklärte Differenz, siehe
+  "Kassendifferenz erklären (Auflösung)" unten.
 
 Darunter eine Karte **"Kassenbestand-Verlauf"**: alter Bargeldbestand (der
 vorherigen Zählung) → Kassenbewegungen in diesem Zeitraum (Tabelle) → neuer
 Bargeldbestand (gezählt) — ein einfacher, nachvollziehbarer Kontoauszug ohne
 Soll/Ist-Mathematik.
-- Ist die Kassendifferenz ungleich 0, zeigt die Auswertung direkt ein Feld
-  **"Kassendifferenz erklären"** an (schreibt in `Zaehlung.notiz`) — die
-  Erklärung erscheint danach in der Monatsauswertung und im CSV-Export, damit
-  für den Steuerberater nachvollziehbar ist, warum eine Differenz entstanden
-  ist.
+
+#### Kassendifferenz erklären (Auflösung)
+
+Ist die Kassendifferenz ungleich 0, zeigt die Auswertung direkt ein Feld
+**"Kassendifferenz erklären"** an: Notiz (z.B. "Trinkgeld", "Per PayPal
+bezahlt") plus einen **erklärten Betrag** (`Zaehlung.differenz_korrektur`),
+vorausgefüllt mit der kompletten aktuellen Differenz, sodass ein Klick auf
+"Trinkgeld" oder "Per PayPal bezahlt" sie automatisch auf den vollen Betrag
+setzt. Nach dem Speichern:
+
+- `Kassendifferenz_unerklärt` (die ursprüngliche, "rohe" Differenz vor jeder
+  Erklärung) bleibt als Audit-Spur erhalten und wird zusammen mit der Notiz
+  angezeigt ("✓ Erledigt: von ursprünglich X € Differenz sind Y € erklärt
+  (Notiz)").
+- Die angezeigte **Kassendifferenz sinkt um genau den erklärten Betrag** — bei
+  vollständiger Erklärung auf 0,00 €, sie gilt dann als abgehakt und das
+  Erklär-Formular verschwindet. Eine Teilerklärung lässt den Rest weiterhin
+  als offene Differenz stehen.
+- Der erklärte Betrag fließt dafür direkt (nur für diese eine Zählung) in den
+  Soll-Kassenbestand/Bargeld-Vorschlag ein, nicht in Bar-Anteil oder
+  Soll-Kasse selbst — die zugrunde liegenden Zahlen (Verbrauch, gezähltes
+  Bargeld, Kassenbewegungen) bleiben unverändert, nur die Differenz-Anzeige
+  wird um den erklärten, dokumentierten Anteil bereinigt.
+- Die Erklärung erscheint danach in der Monatsauswertung (ebenfalls
+  aufgelöst/als "Erledigt" markiert, summiert über alle Zählungen) und im
+  CSV-Export (`Zaehlung.notiz` in der `Notiz`-Spalte), damit für den
+  Steuerberater nachvollziehbar ist, warum eine Differenz entstanden und wie
+  sie erklärt worden ist.
+- Diese Korrektur ist bewusst direkt an die jeweilige Zählung gebunden (nicht
+  über Datum/`erstellt_am` gesucht wie Kassenbewegungen/Freigetränke/Belege,
+  siehe "Zeitraum-Zuordnung bei gleichem Kalendertag") — so lässt sich auch
+  eine bereits bestätigte Zählung gezielt und ohne Seiteneffekte auf andere
+  Zeiträume auflösen.
 - Einkaufsbelege (`Beleg`/`BelegPosition`) gehen **nicht** in Soll-Kasse,
   Kassendifferenz oder den Bargeld-Vorschlag ein — rein dokumentarisch
   (Wareneinsatz, immer private Einlage von Nick, siehe oben).
@@ -204,12 +234,14 @@ einer dritten Seite **"Differenz klären"** (`/zaehlung/<id>/differenz/`):
 zeigt die Kassendifferenz (plus einen Hinweis, falls für den Zeitraum schon
 PayPal-Zahlungen zugeordnet sind) und bietet drei Wege an, sie zu klären —
 direkt zu "Freigetränke erfassen" springen (Datum der Zählung ist
-vorausgefüllt), falls etwas verschenkt wurde; "Per PayPal bezahlt" anklicken,
-falls stattdessen online bezahlt wurde (füllt einen Kommentar inkl.
-Erinnerung vor, dass dafür noch eine Quittung geschrieben werden muss); oder
-einfach einen eigenen Kommentar für den Steuerberater hinterlassen (schreibt
-in `Zaehlung.notiz`, dieselbe Erklärung wie auf der Auswertungsseite). Stimmt
-der bestätigte Betrag mit dem Vorschlag überein, entfällt dieser Schritt.
+vorausgefüllt), falls etwas verschenkt wurde; "Trinkgeld" oder "Per PayPal
+bezahlt" anklicken (füllt Notiz **und** erklärten Betrag automatisch mit der
+vollen Differenz vor, siehe "Kassendifferenz erklären (Auflösung)" oben); oder
+einfach einen eigenen Kommentar plus erklärten Betrag für den Steuerberater
+hinterlassen (schreibt in `Zaehlung.notiz`/`Zaehlung.differenz_korrektur`,
+dieselbe Auflösung wie auf der Auswertungsseite — die Kassendifferenz sinkt
+danach entsprechend, bei vollem Betrag auf 0,00 €). Stimmt der bestätigte
+Betrag mit dem Vorschlag überein, entfällt dieser Schritt.
 
 ### Einkäufe und Freigetränke-Wert (informativ)
 
@@ -343,8 +375,10 @@ Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst.
   Kassendifferenz, Zusammensetzung des Bar-Anteils sowie (rein informativ)
   den Einkaufswert der erfassten Belege und den Wert ausgegebener
   Freigetränke. Bei einer Kassendifferenz ungleich 0 direkt ein Feld zum
-  Erklären der Differenz (siehe "Rechenlogik"). Kein Start/Ende-Picker nötig,
-  jede Zählung steht für sich.
+  Erklären der Differenz, das sie nach dem Speichern auflöst (siehe
+  "Kassendifferenz erklären (Auflösung)" unter "Rechenlogik") — eine bereits
+  erklärte Differenz erscheint stattdessen als "✓ Erledigt" mit Audit-Spur.
+  Kein Start/Ende-Picker nötig, jede Zählung steht für sich.
 - **Monatsauswertung** (`/auswertung/monat/`): alle Zählungen eines Monats
   plus Gesamtergebnis (Summe aller Einzelergebnisse des Monats).
 - **PayPal-Abgleich** (`/paypal/`): neue Zahlungen erfassen (automatische

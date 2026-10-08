@@ -1,4 +1,5 @@
 {% extends "kasse/base.html" %}
+{% load l10n %}
 {% block title %}Differenz klären – Vertrauenskasse{% endblock %}
 {% block content %}
   <h1>Differenz klären</h1>
@@ -8,7 +9,7 @@
   <div class="card">
     <div class="summary-item">
       <div class="muted">Kassendifferenz</div>
-      <div class="value {% if result.kassendifferenz < 0 %}negative{% else %}positive{% endif %}">
+      <div class="value {% if result.kassendifferenz < 0 %}negative{% elif result.kassendifferenz > 0 %}positive{% endif %}">
         {{ result.kassendifferenz }} €
       </div>
     </div>
@@ -34,24 +35,29 @@
     </a>
 
     <p style="margin-top: 1.5rem;">
-      Wurde stattdessen per PayPal bezahlt? Das landet nie physisch in der
-      Kasse und erklärt die Differenz – trag dann unten kurz ein, was per
-      PayPal bezahlt wurde (als Erinnerung, dass dafür noch eine Quittung
-      geschrieben werden muss):
+      Wurde stattdessen per PayPal bezahlt, war es Trinkgeld, oder soll ein
+      eigener Kommentar für den Steuerberater hinterlassen werden? Trag die
+      Erklärung und den dadurch erklärten Betrag ein – die Kassendifferenz
+      sinkt dann um diesen Betrag (bei vollem Betrag auf 0,00 €, also
+      „abgehakt"):
     </p>
     <button type="button" class="btn-secondary"
-            onclick="document.getElementById('id_notiz').value = 'Per PayPal bezahlt – nicht aus der Kasse. Quittung noch zu schreiben.'; document.getElementById('id_notiz').focus();">
+            onclick="document.getElementById('id_notiz').value = 'Trinkgeld'; document.getElementById('id_notiz').focus(); document.getElementById('id_differenz_korrektur').value = '{{ result.kassendifferenz_unerklaert|unlocalize }}';">
+      Trinkgeld
+    </button>
+    <button type="button" class="btn-secondary"
+            onclick="document.getElementById('id_notiz').value = 'Per PayPal bezahlt – nicht aus der Kasse. Quittung noch zu schreiben.'; document.getElementById('id_notiz').focus(); document.getElementById('id_differenz_korrektur').value = '{{ result.kassendifferenz_unerklaert|unlocalize }}';">
       Per PayPal bezahlt
     </button>
 
-    <p style="margin-top: 1.5rem;">
-      Oder einfach einen eigenen Kommentar für den Steuerberater hinterlassen,
-      warum es eine Differenz gibt:
-    </p>
-    <form method="post">
+    <form method="post" style="margin-top: 1rem;">
       {% csrf_token %}
+      <label for="id_notiz">Kommentar für den Steuerberater:</label>
       <textarea id="id_notiz" name="notiz" rows="3" placeholder="z.B. Gast hat nicht bezahlt, Wechselgeld-Fehler, …">{{ zaehlung.notiz }}</textarea>
-      <button type="submit" class="btn-save">Kommentar speichern</button>
+      <label for="id_differenz_korrektur">Davon erklärter Betrag (wird von der Kassendifferenz abgezogen):</label>
+      <input type="number" step="0.01" inputmode="decimal" id="id_differenz_korrektur"
+             name="differenz_korrektur" value="{{ result.kassendifferenz_unerklaert|unlocalize }}">
+      <button type="submit" class="btn-save">Erklärung speichern</button>
     </form>
 
     <p class="muted" style="margin-top: 1.5rem;">

@@ -297,6 +297,79 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.bargeld_vorschlag, ergebnis.soll_kasse)
 
 
+class DifferenzKorrekturTests(TestCase):
+    """Reproduziert den vom Nutzer gemeldeten Fall: eine erklaerte
+    Kassendifferenz (z.B. Trinkgeld, per PayPal bezahlt) soll nicht als Fehler
+    stehen bleiben, sondern nach der Erklaerung als erledigt (Differenz 0)
+    gelten - mit Audit-Spur ueber die urspruengliche, unerklaerte Differenz."""
+
+    def setUp(self):
+        self.wasser = Getraenk.objects.create(
+            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
+        )
+        self.start = _zaehlung("2026-10-01", "0")
+
+    def test_ohne_korrektur_bleibt_kassendifferenz_wie_gezaehlt(self):
+        ende = Zaehlung.objects.create(datum="2026-10-03", bargeld_gezaehlt=Decimal("50.00"))
+        _verbrauch(ende, self.wasser, 20)  # Soll 30.00 -> Kassendifferenz +20.00
+        ergebnis = berechne_auswertung(ende)
+        self.assertEqual(ergebnis.kassendifferenz_unerklaert, Decimal("20.00"))
+        self.assertEqual(ergebnis.differenz_korrektur, Decimal("0"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("20.00"))
+
+    def test_volle_korrektur_loest_kassendifferenz_auf_null_auf(self):
+        # Reproduziert exakt den Nutzer-Screenshot: Soll 47,00 / Ist 50,00 /
+        # Kassendifferenz +3,00, erklaert als Trinkgeld -> soll danach 0,00 sein.
+        bier = Getraenk.objects.create(
+            name="Bier", warenpreis=Decimal("0.80"), verkaufspreis=Decimal("1.00")
+        )
+        ende = Zaehlung.objects.create(
+            datum="2026-10-03", bargeld_gezaehlt=Decimal("50.00"), notiz="Trinkgeld",
+            differenz_korrektur=Decimal("3.00"),
+        )
+        _verbrauch(ende, bier, 47)  # Soll 47.00
+        ergebnis = berechne_auswertung(ende)
+        self.assertEqual(ergebnis.soll_kasse, Decimal("47.00"))
+        self.assertEqual(ergebnis.kassendifferenz_unerklaert, Decimal("3.00"))
+        self.assertEqual(ergebnis.differenz_korrektur, Decimal("3.00"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("0.00"))
+
+    def test_teilweise_korrektur_laesst_rest_als_offene_differenz(self):
+        ende = Zaehlung.objects.create(
+            datum="2026-10-03", bargeld_gezaehlt=Decimal("50.00"),
+            differenz_korrektur=Decimal("1.00"),
+        )
+        _verbrauch(ende, self.wasser, 20)  # Soll 30.00 -> unerklaert +20.00
+        ergebnis = berechne_auswertung(ende)
+        self.assertEqual(ergebnis.kassendifferenz_unerklaert, Decimal("20.00"))
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("19.00"))
+
+    def test_korrektur_fliesst_in_bargeld_vorschlag_ein_invariante_bleibt_konsistent(self):
+        ende = Zaehlung.objects.create(
+            datum="2026-10-03", bargeld_gezaehlt=Decimal("50.00"),
+            differenz_korrektur=Decimal("3.00"),
+        )
+        _verbrauch(ende, self.wasser, 20)
+        ergebnis = berechne_auswertung(ende)
+        # Die Invariante "neuer Bargeldbestand - Vorschlag == Kassendifferenz"
+        # muss auch nach Einrechnung der Korrektur weiter gelten.
+        self.assertEqual(
+            ergebnis.neuer_bargeldbestand - ergebnis.bargeld_vorschlag,
+            ergebnis.kassendifferenz,
+        )
+
+    def test_korrektur_summiert_sich_korrekt_in_monatsauswertung(self):
+        ende = Zaehlung.objects.create(
+            datum="2026-10-03", bargeld_gezaehlt=Decimal("50.00"),
+            differenz_korrektur=Decimal("3.00"),
+        )
+        _verbrauch(ende, self.wasser, 20)  # unerklaert +20.00, erklaert 3.00
+        zeitraum = berechne_zeitraum(Zaehlung.objects.filter(pk__in=[self.start.pk, ende.pk]))
+        self.assertEqual(zeitraum.differenz_korrektur, Decimal("3.00"))
+        self.assertEqual(zeitraum.kassendifferenz_unerklaert, Decimal("20.00"))
+        self.assertEqual(zeitraum.kassendifferenz, Decimal("17.00"))
+
+
 class KassenbestandVerlaufTests(TestCase):
     """Reproduziert den vom Nutzer gemeldeten Fall: eine Starteinlage muss im
     'Ist-Kassenbestand' als tatsaechlich vorhandenes Geld sichtbar sein, nicht
@@ -861,6 +934,31 @@ class ZaehlungDifferenzViewTests(TestCase):
         self.zaehlung.refresh_from_db()
         self.assertEqual(self.zaehlung.notiz, "Gast hat nicht bezahlt")
 
+    def test_post_mit_erklaertem_betrag_loest_kassendifferenz_auf(self):
+        # self.zaehlung hat eine Kassendifferenz von -2.50 (siehe setUp).
+        response = self.client.post(
+            reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk]),
+            {"notiz": "Trinkgeld negativ, Wechselgeld-Fehler", "differenz_korrektur": "-2.50"},
+        )
+        self.assertRedirects(response, reverse("kasse:home"))
+        self.zaehlung.refresh_from_db()
+        self.assertEqual(self.zaehlung.differenz_korrektur, Decimal("-2.50"))
+        ergebnis = berechne_auswertung(self.zaehlung)
+        self.assertEqual(ergebnis.kassendifferenz, Decimal("0.00"))
+
+    def test_get_befuellt_erklaerten_betrag_mit_voller_differenz_vor(self):
+        response = self.client.get(
+            reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk])
+        )
+        self.assertEqual(
+            response.context["form"].initial["differenz_korrektur"], Decimal("-2.50")
+        )
+        # Das Eingabefeld ist ein HTML5 number-Input: der Wert muss mit Punkt
+        # als Dezimaltrennzeichen im HTML stehen, sonst verwirft der Browser
+        # ihn als ungueltig (de-de-Lokalisierung wuerde "-2,50" liefern).
+        self.assertContains(response, 'value="-2.50"')
+        self.assertNotContains(response, "value=\"-2,50\"")
+
     def test_zeigt_per_paypal_bezahlt_option_und_paypal_hinweis(self):
         PaypalZahlung.objects.create(
             datum="2026-06-01", betrag=Decimal("5.00"), zaehlung=self.zaehlung,
@@ -1105,6 +1203,30 @@ class AuswertungViewTests(TestCase):
         )
         zaehlung.refresh_from_db()
         self.assertEqual(zaehlung.notiz, "Kunde hat vergessen zu zahlen")
+
+    def test_post_mit_differenz_korrektur_loest_kassendifferenz_auf_und_markiert_erledigt(self):
+        _zaehlung("2026-06-01", "0")
+        zaehlung = _zaehlung("2026-06-15", "999.00")  # bewusst falsch -> Differenz
+        ergebnis_vorher = berechne_auswertung(zaehlung)
+        self.client.post(
+            reverse("kasse:auswertung") + f"?zaehlung={zaehlung.pk}",
+            {
+                "zaehlung_id": zaehlung.pk,
+                "notiz": "Trinkgeld",
+                "differenz_korrektur": str(ergebnis_vorher.kassendifferenz_unerklaert),
+                "notiz_speichern": "1",
+            },
+        )
+        zaehlung.refresh_from_db()
+        self.assertEqual(
+            zaehlung.differenz_korrektur, ergebnis_vorher.kassendifferenz_unerklaert
+        )
+        response = self.client.get(
+            reverse("kasse:auswertung"), {"zaehlung": zaehlung.pk}
+        )
+        self.assertContains(response, "0,00 €")
+        self.assertContains(response, "Erledigt")
+        self.assertNotContains(response, "Kassendifferenz erklären")
 
     def test_differenz_erklaerung_in_exportiertem_monat_wird_blockiert(self):
         zaehlung = _zaehlung("2026-06-15", "999.00")

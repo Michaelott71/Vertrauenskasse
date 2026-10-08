@@ -47,6 +47,8 @@ class Auswertung:
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
+    kassendifferenz_unerklaert: Decimal = Decimal("0")
+    differenz_korrektur: Decimal = Decimal("0")
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
@@ -181,7 +183,14 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         (p.betrag for p in paypal_zahlungen), Decimal("0")
     )
 
-    auswertung.kassendifferenz = auswertung.bar_anteil - auswertung.soll_kasse
+    # Kassendifferenz vor einer eventuellen Erklaerung (z.B. Trinkgeld, per
+    # PayPal bezahlt) - bleibt als Audit-Spur erhalten, auch wenn die
+    # (erklaerte) Kassendifferenz unten durch die Korrektur auf 0 sinkt.
+    auswertung.kassendifferenz_unerklaert = auswertung.bar_anteil - auswertung.soll_kasse
+    auswertung.differenz_korrektur = zaehlung.differenz_korrektur
+    auswertung.kassendifferenz = (
+        auswertung.kassendifferenz_unerklaert - auswertung.differenz_korrektur
+    )
 
     # Einkaufswert: rein informativ (Einkaeufe sind immer private Einlagen von
     # Nick, siehe Beleg-Docstring) - fliesst nicht in Soll-/Ist-Kasse oder die
@@ -206,12 +215,16 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
         if vorherige and vorherige.bargeld_gezaehlt is not None
         else Decimal("0")
     )
+    # Eine erklaerte Kassendifferenz (z.B. Trinkgeld, per PayPal bezahlt) wird
+    # direkt in den Vorschlag eingerechnet, damit "neuer Bargeldbestand minus
+    # Vorschlag == Kassendifferenz" (nach Erklaerung) weiterhin stimmt.
     auswertung.bargeld_vorschlag = (
         vorheriges_bargeld
         + auswertung.soll_kasse
         + auswertung.einlagen
         - auswertung.entnahmen
         + auswertung.fremde_bargeldeingaenge
+        + auswertung.differenz_korrektur
     )
 
     # Einfacher Kassenbestand-Verlauf (alter Bargeldbestand -> Kassen-
@@ -239,6 +252,8 @@ class ZeitraumAuswertung:
     bar_anteil: Decimal = Decimal("0")
     paypal_anteil: Decimal = Decimal("0")
     kassendifferenz: Decimal = Decimal("0")
+    kassendifferenz_unerklaert: Decimal = Decimal("0")
+    differenz_korrektur: Decimal = Decimal("0")
     freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
@@ -269,6 +284,7 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.netto_kassenbewegungen += ergebnis.netto_kassenbewegungen
         zeitraum.bar_anteil += ergebnis.bar_anteil
         zeitraum.paypal_anteil += ergebnis.paypal_anteil
+        zeitraum.differenz_korrektur += ergebnis.differenz_korrektur
         zeitraum.freigetraenke_wert += ergebnis.freigetraenke_wert
         zeitraum.belege += ergebnis.belege
         zeitraum.einkaufswert += ergebnis.einkaufswert
@@ -293,7 +309,10 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
     zeitraum.positionen = sorted(
         positionen_je_getraenk.values(), key=lambda p: p.getraenk.name.lower()
     )
-    zeitraum.kassendifferenz = zeitraum.bar_anteil - zeitraum.soll_kasse
+    zeitraum.kassendifferenz_unerklaert = zeitraum.bar_anteil - zeitraum.soll_kasse
+    zeitraum.kassendifferenz = (
+        zeitraum.kassendifferenz_unerklaert - zeitraum.differenz_korrektur
+    )
 
     # Kassenbestand-Verlauf fuer den gesamten Zeitraum: alter Bargeldbestand
     # der ersten Zaehlung bis zum tatsaechlich gezaehlten Bestand der letzten
@@ -304,6 +323,7 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.alter_bargeldbestand
         + zeitraum.soll_kasse
         + zeitraum.netto_kassenbewegungen
+        + zeitraum.differenz_korrektur
     )
     return zeitraum
 

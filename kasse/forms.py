@@ -44,6 +44,31 @@ class BargeldBestaetigenForm(forms.ModelForm):
         fields = ["bargeld_gezaehlt"]
 
 
+class DifferenzErklaerenForm(forms.ModelForm):
+    """Erklaerung einer Kassendifferenz (z.B. Trinkgeld, per PayPal bezahlt):
+    Notiz als Begruendung plus optional ein Korrekturbetrag, der die
+    Kassendifferenz entsprechend sinken laesst (siehe README, Abschnitt
+    "Kassendifferenz erklaeren")."""
+
+    differenz_korrektur = forms.DecimalField(
+        label="Erklärter Betrag",
+        max_digits=9,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(
+            attrs={"step": "0.01", "inputmode": "decimal"}
+        ),
+    )
+
+    class Meta:
+        model = Zaehlung
+        fields = ["notiz", "differenz_korrektur"]
+        widgets = {"notiz": forms.Textarea(attrs={"rows": 2})}
+
+    def clean_differenz_korrektur(self):
+        return self.cleaned_data.get("differenz_korrektur") or 0
+
+
 class FreigetraenkMetaForm(forms.Form):
     """Datum/Kommentar fuer eine Freigetraenke-Erfassung; die Mengen je Artikel
     kommen aus den Kacheln und werden im View direkt aus dem POST gelesen."""

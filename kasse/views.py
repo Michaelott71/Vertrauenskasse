@@ -17,6 +17,7 @@ from .export import erzeuge_csv, markiere_als_exportiert
 from .forms import (
     BargeldBestaetigenForm,
     BelegForm,
+    DifferenzErklaerenForm,
     ExportForm,
     FreigetraenkMetaForm,
     KassenbewegungForm,
@@ -146,21 +147,29 @@ def zaehlung_differenz(request, zaehlung_id):
     zaehlung = get_object_or_404(Zaehlung, pk=zaehlung_id)
 
     if request.method == "POST":
-        zaehlung.notiz = request.POST.get("notiz", "")
-        try:
-            zaehlung.clean()
-        except GesperrterMonatError as exc:
-            messages.error(request, str(exc))
-        else:
-            zaehlung.save()
-            messages.success(request, "Kommentar gespeichert.")
-            return redirect(reverse("kasse:home"))
+        form = DifferenzErklaerenForm(request.POST, instance=zaehlung)
+        if form.is_valid():
+            form.save(commit=False)
+            try:
+                zaehlung.clean()
+            except GesperrterMonatError as exc:
+                messages.error(request, str(exc))
+            else:
+                zaehlung.save()
+                messages.success(request, "Erklärung gespeichert.")
+                return redirect(reverse("kasse:home"))
+    else:
+        vorschau = berechne_auswertung(zaehlung)
+        form = DifferenzErklaerenForm(
+            instance=zaehlung,
+            initial={"differenz_korrektur": vorschau.kassendifferenz_unerklaert},
+        )
 
     result = berechne_auswertung(zaehlung)
     return render(
         request,
         "kasse/zaehlung_differenz.html",
-        {"zaehlung": zaehlung, "result": result},
+        {"zaehlung": zaehlung, "result": result, "form": form},
     )
 
 
@@ -299,14 +308,16 @@ def auswertung(request):
 
     if request.method == "POST" and "notiz_speichern" in request.POST:
         zaehlung = get_object_or_404(Zaehlung, pk=request.POST.get("zaehlung_id"))
-        zaehlung.notiz = request.POST.get("notiz", "")
-        try:
-            zaehlung.clean()
-        except GesperrterMonatError as exc:
-            messages.error(request, str(exc))
-        else:
-            zaehlung.save()
-            messages.success(request, "Erklärung gespeichert.")
+        form = DifferenzErklaerenForm(request.POST, instance=zaehlung)
+        if form.is_valid():
+            form.save(commit=False)
+            try:
+                zaehlung.clean()
+            except GesperrterMonatError as exc:
+                messages.error(request, str(exc))
+            else:
+                zaehlung.save()
+                messages.success(request, "Erklärung gespeichert.")
         return redirect(f"{reverse('kasse:auswertung')}?zaehlung={zaehlung.pk}")
 
     zaehlung_id = request.GET.get("zaehlung")
