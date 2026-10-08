@@ -153,7 +153,7 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
         if ergebnis is not None and (
             ergebnis.soll_kasse or ergebnis.bar_anteil or ergebnis.kassendifferenz
         ):
-            menge = sum(p.verkauft for p in ergebnis.positionen)
+            menge = sum(p.verbraucht for p in ergebnis.positionen)
             letzte = zaehlungen[-1]
             notizen = "; ".join(z.notiz for z in zaehlungen if z.notiz)
             zeilen.append((
@@ -171,7 +171,7 @@ def erzeuge_zeilen(jahr, monat, aggregiert=False):
     else:
         for zaehlung in zaehlungen:
             ergebnis = berechne_auswertung(zaehlung)
-            menge = sum(p.verkauft for p in ergebnis.positionen)
+            menge = sum(p.verbraucht for p in ergebnis.positionen)
             if (
                 ergebnis.soll_kasse
                 or ergebnis.bar_anteil

@@ -3,7 +3,6 @@ from django.contrib import admin
 from .models import (
     Beleg,
     BelegPosition,
-    Freigetraenk,
     Getraenk,
     Kassenbewegung,
     MonatsExport,
@@ -42,12 +41,6 @@ class BelegPositionInline(admin.TabularInline):
 class BelegAdmin(admin.ModelAdmin):
     list_display = ("datum", "haendler", "gesamtbetrag", "dateipfad")
     inlines = [BelegPositionInline]
-
-
-@admin.register(Freigetraenk)
-class FreigetraenkAdmin(admin.ModelAdmin):
-    list_display = ("datum", "getraenk", "anzahl", "kommentar")
-    list_filter = ("getraenk",)
 
 
 @admin.register(Kassenbewegung)

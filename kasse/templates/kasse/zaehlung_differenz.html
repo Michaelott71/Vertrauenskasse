@@ -23,23 +23,13 @@
   </div>
 
   <div class="card">
-    <h2>Was möchtest du tun?</h2>
+    <h2>Differenz erklären</h2>
 
     <p>
-      Wurde etwas verschenkt (z.B. eine Runde aufs Haus)? Dann trag es als
-      Freigetränk ein – das erklärt die Differenz direkt über den
-      tatsächlichen Verbrauch.
-    </p>
-    <a class="btn" href="{% url 'kasse:freigetraenk_neu' %}?datum={{ zaehlung.datum|date:'Y-m-d' }}">
-      Freigetränke erfassen
-    </a>
-
-    <p style="margin-top: 1.5rem;">
-      Wurde stattdessen per PayPal bezahlt, war es Trinkgeld, oder soll ein
-      eigener Kommentar für den Steuerberater hinterlassen werden? Trag die
-      Erklärung und den dadurch erklärten Betrag ein – die Kassendifferenz
-      sinkt dann um diesen Betrag (bei vollem Betrag auf 0,00 €, also
-      „abgehakt"):
+      Wurde per PayPal bezahlt, war es Trinkgeld, oder soll ein eigener
+      Kommentar für den Steuerberater hinterlassen werden? Trag die Erklärung
+      und den dadurch erklärten Betrag ein – die Kassendifferenz sinkt dann um
+      diesen Betrag (bei vollem Betrag auf 0,00 €, also „abgehakt"):
     </p>
     <button type="button" class="btn-secondary"
             onclick="document.getElementById('id_notiz').value = 'Trinkgeld'; document.getElementById('id_notiz').focus(); document.getElementById('id_differenz_korrektur').value = '{{ result.kassendifferenz_unerklaert|unlocalize }}';">

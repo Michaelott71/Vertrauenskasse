@@ -13,7 +13,6 @@ from django.db.models import Q, Sum
 from .models import (
     Beleg,
     BelegPosition,
-    Freigetraenk,
     Getraenk,
     Kassenbewegung,
     PaypalZahlung,
@@ -26,8 +25,6 @@ from .models import (
 class GetraenkAuswertung:
     getraenk: Getraenk
     verbraucht: int
-    freigetraenke: int
-    verkauft: int
     verkaufspreis: Decimal
     soll_kasse: Decimal
 
@@ -49,7 +46,6 @@ class Auswertung:
     kassendifferenz: Decimal = Decimal("0")
     kassendifferenz_unerklaert: Decimal = Decimal("0")
     differenz_korrektur: Decimal = Decimal("0")
-    freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
     bargeld_vorschlag: Decimal = Decimal("0")
@@ -105,37 +101,22 @@ def berechne_auswertung(zaehlung: Zaehlung) -> Auswertung:
     getraenk_ids = set(verbraeuche)
     getraenke = {g.id: g for g in Getraenk.objects.filter(id__in=getraenk_ids)}
 
-    freigetraenke_filter = _im_zeitraum(
-        Freigetraenk.objects.filter(getraenk_id__in=getraenk_ids), vorherige, zaehlung
-    )
-    freigetraenke_je_getraenk = dict(
-        freigetraenke_filter.values("getraenk_id")
-        .annotate(summe=Sum("anzahl"))
-        .values_list("getraenk_id", "summe")
-    )
-
     auswertung = Auswertung(zaehlung=zaehlung, vorherige=vorherige)
 
     for getraenk_id in sorted(getraenke, key=lambda gid: getraenke[gid].name.lower()):
         getraenk = getraenke[getraenk_id]
         verbraucht = verbraeuche.get(getraenk_id, 0)
-        freigetraenke = freigetraenke_je_getraenk.get(getraenk_id, 0)
-
-        verkauft = verbraucht - freigetraenke
-        soll_kasse_i = verkauft * getraenk.verkaufspreis
+        soll_kasse_i = verbraucht * getraenk.verkaufspreis
 
         auswertung.positionen.append(
             GetraenkAuswertung(
                 getraenk=getraenk,
                 verbraucht=verbraucht,
-                freigetraenke=freigetraenke,
-                verkauft=verkauft,
                 verkaufspreis=getraenk.verkaufspreis,
                 soll_kasse=soll_kasse_i,
             )
         )
         auswertung.soll_kasse += soll_kasse_i
-        auswertung.freigetraenke_wert += freigetraenke * getraenk.verkaufspreis
 
     # Bargeld-Differenz: einfache Differenz des gezaehlten Bargelds seit der
     # letzten Zaehlung (0, wenn dies die allererste Zaehlung ist).
@@ -254,7 +235,6 @@ class ZeitraumAuswertung:
     kassendifferenz: Decimal = Decimal("0")
     kassendifferenz_unerklaert: Decimal = Decimal("0")
     differenz_korrektur: Decimal = Decimal("0")
-    freigetraenke_wert: Decimal = Decimal("0")
     belege: list = field(default_factory=list)
     einkaufswert: Decimal = Decimal("0")
     bargeld_vorschlag: Decimal = Decimal("0")
@@ -285,7 +265,6 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
         zeitraum.bar_anteil += ergebnis.bar_anteil
         zeitraum.paypal_anteil += ergebnis.paypal_anteil
         zeitraum.differenz_korrektur += ergebnis.differenz_korrektur
-        zeitraum.freigetraenke_wert += ergebnis.freigetraenke_wert
         zeitraum.belege += ergebnis.belege
         zeitraum.einkaufswert += ergebnis.einkaufswert
 
@@ -295,15 +274,11 @@ def berechne_zeitraum(zaehlungen) -> ZeitraumAuswertung | None:
                 GetraenkAuswertung(
                     getraenk=position.getraenk,
                     verbraucht=0,
-                    freigetraenke=0,
-                    verkauft=0,
                     verkaufspreis=position.verkaufspreis,
                     soll_kasse=Decimal("0"),
                 ),
             )
             aggregiert.verbraucht += position.verbraucht
-            aggregiert.freigetraenke += position.freigetraenke
-            aggregiert.verkauft += position.verkauft
             aggregiert.soll_kasse += position.soll_kasse
 
     zeitraum.positionen = sorted(

@@ -1,8 +1,8 @@
 # Vertrauenskasse
 
 Modul zur Verwaltung der Getränke-/Snack-Vertrauenskasse: Bestandszählungen im
-Kassensystem-Stil, Belege, Freigetränke und PayPal-Zahlungen erfassen und
-automatisch Soll/Ist-Kasse berechnen.
+Kassensystem-Stil, Belege und PayPal-Zahlungen erfassen und automatisch
+Soll/Ist-Kasse berechnen.
 
 Pfand ist bewusst **kein** Teil der Geschäftslogik: Der Einkauf wird immer
 privat bezahlt (nie aus der Firmenkasse), und die Pfand-Erstattung beim
@@ -13,8 +13,8 @@ außerhalb der Vertrauenskasse, die selbst nie Pfand auszahlt.
 
 - **Django 5** (Python) mit **SQLite** als Datenbank — ein einzelner, kleiner
   Prozess ohne separaten Frontend-Build, läuft problemlos auf einem NAS/Raspberry Pi.
-- Django Admin für die Verwaltung von Getränken, Belegen, Freigetränken,
-  PayPal-Zahlungen und Stichwörtern.
+- Django Admin für die Verwaltung von Getränken, Belegen, PayPal-Zahlungen
+  und Stichwörtern.
 - Eigene, mobile-optimierte Views/Templates für die Kernworkflows: Zählung
   erfassen, Auswertung ansehen, PayPal-Abgleich, CSV-Export.
 - Die Zählung selbst ist **kein Formular**, sondern eine Kachel-Oberfläche
@@ -57,7 +57,6 @@ die für die geforderte Rechen-/Zuordnungslogik technisch nötig sind (siehe
 | `ZaehlungVerbrauch` | Direkt eingetragen: wie viel von einem Artikel seit der letzten Zählung verbraucht/verkauft wurde (kein Bestand wird gezählt oder verglichen) |
 | `Beleg` | Einkaufsbeleg (Datum, Dateipfad, Gesamtbetrag, Händler) — gilt immer automatisch als private Einlage von Nick; rein dokumentarisch, fließt in keine Kassenberechnung ein |
 | `BelegPosition` | Positionen eines Belegs je Getränk (Einkaufsmenge), Einzelpreis = `Getraenk.warenpreis` zum Zeitpunkt des Einkaufs |
-| `Freigetraenk` | Freigetränke je Getränk, auch rückwirkend nachtragbar (bis zum CSV-Export des Monats) |
 | `Kassenbewegung` | Bargeldbewegung ohne Bezug zum Getränkeverkauf: Einlage, Entnahme oder fremder Bargeldeingang |
 | `PaypalZahlung` | PayPal-Zahlungen mit automatischer Zuordnung zur Vertrauenskasse |
 
@@ -98,10 +97,9 @@ keine neuen fachlichen Konzepte):
 - `MonatsExport` (neue Tabelle): merkt sich, welche Monate bereits als CSV
   exportiert wurden, um die Regel "Korrekturen nur bis zum Export rückwirkend
   möglich" technisch durchzusetzen (gilt für `Zaehlung` selbst inkl.
-  `bargeld_gezaehlt`, `ZaehlungVerbrauch`, `Freigetraenk`, `Kassenbewegung`
-  und `Beleg`).
-- `erstellt_am` auf `Zaehlung`, `Kassenbewegung`, `Freigetraenk` und `Beleg`:
-  wird automatisch beim Speichern gesetzt, nicht vom Nutzer. Nötig, damit sich
+  `bargeld_gezaehlt`, `ZaehlungVerbrauch`, `Kassenbewegung` und `Beleg`).
+- `erstellt_am` auf `Zaehlung`, `Kassenbewegung` und `Beleg`: wird automatisch
+  beim Speichern gesetzt, nicht vom Nutzer. Nötig, damit sich
   Ereignisse am **selben Kalendertag** wie eine Zählung noch eindeutig
   zeitlich einordnen lassen (siehe "Rechenlogik" → Zeitraum-Zuordnung).
 
@@ -113,9 +111,8 @@ den Zeitraum seit der zeitlich vorangehenden Zählung (`vorherige_zaehlung()`)
 — es muss also nichts "zwischen zwei Zählungen" ausgewählt werden, jede
 Zählung hat sofort ihr eigenes Ergebnis, auch die allererste:
 
-- `Verkauft(i) = Verbraucht_eingetragen(i) − Freigetränke(i)` (direkt
-  eingetragener Wert, kein Bestandsvergleich)
-- `Soll-Kasse = Σ Verkauft(i) × Verkaufspreis(i)` (Verkaufspreis ohne Pfand-Anteil,
+- `Soll-Kasse = Σ Verbraucht_eingetragen(i) × Verkaufspreis(i)` (direkt
+  eingetragener Wert, kein Bestandsvergleich; Verkaufspreis ohne Pfand-Anteil,
   reiner Umsatz dieses Zeitraums, keine absolute Bestandsgröße)
 - `Bargeld-Differenz = bargeld_gezählt(jetzt) − bargeld_gezählt(letzte Zählung)`
   (0 statt letzterem, wenn dies die allererste Zählung ist)
@@ -188,8 +185,8 @@ setzt. Nach dem Speichern:
   Steuerberater nachvollziehbar ist, warum eine Differenz entstanden und wie
   sie erklärt worden ist.
 - Diese Korrektur ist bewusst direkt an die jeweilige Zählung gebunden (nicht
-  über Datum/`erstellt_am` gesucht wie Kassenbewegungen/Freigetränke/Belege,
-  siehe "Zeitraum-Zuordnung bei gleichem Kalendertag") — so lässt sich auch
+  über Datum/`erstellt_am` gesucht wie Kassenbewegungen/Belege, siehe
+  "Zeitraum-Zuordnung bei gleichem Kalendertag") — so lässt sich auch
   eine bereits bestätigte Zählung gezielt und ohne Seiteneffekte auf andere
   Zeiträume auflösen.
 - Einkaufsbelege (`Beleg`/`BelegPosition`) gehen **nicht** in Soll-Kasse,
@@ -200,7 +197,7 @@ setzt. Nach dem Speichern:
 
 ### Zeitraum-Zuordnung bei gleichem Kalendertag
 
-`Kassenbewegung`, `Freigetraenk` und `Beleg` werden anhand ihres Datums einer
+`Kassenbewegung` und `Beleg` werden anhand ihres Datums einer
 Zählungsperiode zugeordnet (alles zwischen der vorherigen und der aktuellen
 Zählung). Fallen mehrere Ereignisse auf **denselben Kalendertag** wie eine
 Zählung, reicht das Datum allein nicht aus, um zu entscheiden, ob ein
@@ -232,26 +229,23 @@ der Kasse erwartet wird.
 Weicht der bestätigte Betrag vom Vorschlag ab, führt die Kasse direkt zu
 einer dritten Seite **"Differenz klären"** (`/zaehlung/<id>/differenz/`):
 zeigt die Kassendifferenz (plus einen Hinweis, falls für den Zeitraum schon
-PayPal-Zahlungen zugeordnet sind) und bietet drei Wege an, sie zu klären —
-direkt zu "Freigetränke erfassen" springen (Datum der Zählung ist
-vorausgefüllt), falls etwas verschenkt wurde; "Trinkgeld" oder "Per PayPal
-bezahlt" anklicken (füllt Notiz **und** erklärten Betrag automatisch mit der
-vollen Differenz vor, siehe "Kassendifferenz erklären (Auflösung)" oben); oder
-einfach einen eigenen Kommentar plus erklärten Betrag für den Steuerberater
-hinterlassen (schreibt in `Zaehlung.notiz`/`Zaehlung.differenz_korrektur`,
-dieselbe Auflösung wie auf der Auswertungsseite — die Kassendifferenz sinkt
-danach entsprechend, bei vollem Betrag auf 0,00 €). Stimmt der bestätigte
-Betrag mit dem Vorschlag überein, entfällt dieser Schritt.
+PayPal-Zahlungen zugeordnet sind) und bietet an, sie zu erklären — "Trinkgeld"
+oder "Per PayPal bezahlt" anklicken (füllt Notiz **und** erklärten Betrag
+automatisch mit der vollen Differenz vor, siehe "Kassendifferenz erklären
+(Auflösung)" oben) oder einfach einen eigenen Kommentar plus erklärten Betrag
+für den Steuerberater hinterlassen (schreibt in
+`Zaehlung.notiz`/`Zaehlung.differenz_korrektur`, dieselbe Auflösung wie auf
+der Auswertungsseite — die Kassendifferenz sinkt danach entsprechend, bei
+vollem Betrag auf 0,00 €). Stimmt der bestätigte Betrag mit dem Vorschlag
+überein, entfällt dieser Schritt.
 
-### Einkäufe und Freigetränke-Wert (informativ)
+### Einkäufe (informativ)
 
-Zusätzlich zeigt die Auswertung zwei rein informative Werte, die in keine der
-obigen Berechnungen einfließen:
+Zusätzlich zeigt die Auswertung einen rein informativen Wert, der in keine
+der obigen Berechnungen einfließt:
 
 - `Einkaufswert = Σ Beleg.gesamtbetrag` aller im Zeitraum erfassten Belege
   (Seite "Einkäufe", `/beleg/neu/`) — inklusive der Angabe, was gekauft wurde.
-- `Freigetränke-Wert = Σ Freigetränke(i) × Verkaufspreis(i)` — zeigt, wie viel
-  Umsatz durch ausgegebene Freigetränke verschenkt wurde.
 
 Es gibt bewusst **keine** Leergut-/Pfand-Differenzrechnung: Einkauf und
 Pfand-Rückgabe sind private Angelegenheiten von Nick und fließen nie durch
@@ -274,7 +268,7 @@ Bewegungen):
 
 Kassenbewegungen sind keine Erlöse und erscheinen daher **nicht** im
 CSV-Monatsexport, wohl aber im Zählprotokoll (Auswertung je Zählung) und in
-der Vertrauenskassenliste. Rückwirkende Korrekturen sind wie bei Freigetränken
+der Vertrauenskassenliste. Rückwirkende Korrekturen sind wie bei Belegen
 nur bis zum CSV-Export des betroffenen Monats möglich.
 
 Getestet in `kasse/tests.py` (`python manage.py test`).
@@ -326,8 +320,8 @@ er automatisch erkannt.
   bestätigtes Bargeld, fehlt der Endbestand und es gibt eine Warnung.
 
 Der Export markiert den Monat als exportiert (`MonatsExport`) — danach sind
-Korrekturen für diesen Monat nicht mehr rückwirkend möglich (Freigetränke,
-Bestandskorrekturen), sondern werden als Vermerk im Folgemonat erfasst. Da
+Korrekturen für diesen Monat nicht mehr rückwirkend möglich, sondern werden
+als Vermerk im Folgemonat erfasst. Da
 das nicht mehr rückgängig zu machen ist, prüft die Seite "CSV-Export" vor
 jedem Export zwei Dinge:
 
@@ -379,17 +373,14 @@ einzelnen Klick.
      Betrags mehr nötig.
   3. **Differenz klären** (`/zaehlung/<id>/differenz/`), nur wenn der
      bestätigte Betrag vom Vorschlag abweicht: Kassendifferenz anzeigen und
-     direkt anbieten, entweder Freigetränke nachzutragen (Datum
-     vorausgefüllt) oder einen Kommentar für den Steuerberater zu
-     hinterlassen.
+     direkt anbieten, sie zu erklären (Notiz plus erklärter Betrag, siehe
+     "Kassendifferenz erklären (Auflösung)" unter "Rechenlogik").
 
   Wird Schritt 2 übersprungen (z.B. Browser geschlossen), bleibt das Bargeld
   der Zählung leer. Auf der Startseite erscheint dafür ein Hinweis "Bargeld
   noch erfassen", und die Auswertung warnt deutlich, dass die Kassendifferenz
   für diese Zählung noch nicht aussagekräftig ist (geht bis dahin von 0 €
   gezähltem Bargeld aus).
-- **Freigetränke** (`/freigetraenk/neu/`): gleiche Kachel-Bedienung, Datum
-  frei wählbar (auch rückwirkend, solange der Monat nicht exportiert ist).
 - **Kassenbewegung** (`/kassenbewegung/neu/`): Einlage/Entnahme/fremder
   Bargeldeingang über ein großes Zahlenfeld erfassen, darunter die
   Vertrauenskassenliste (chronologisches Journal).
@@ -405,9 +396,8 @@ einzelnen Klick.
 - **Auswertung** (`/auswertung/`): eine Zählung auswählen (Standard: die
   letzte), zeigt sofort ihr Ergebnis — Soll-Kassenbestand, Ist-Kassenbestand,
   Kassendifferenz, Zusammensetzung des Bar-Anteils sowie (rein informativ)
-  den Einkaufswert der erfassten Belege und den Wert ausgegebener
-  Freigetränke. Bei einer Kassendifferenz ungleich 0 direkt ein Feld zum
-  Erklären der Differenz, das sie nach dem Speichern auflöst (siehe
+  den Einkaufswert der erfassten Belege. Bei einer Kassendifferenz ungleich 0
+  direkt ein Feld zum Erklären der Differenz, das sie nach dem Speichern auflöst (siehe
   "Kassendifferenz erklären (Auflösung)" unter "Rechenlogik") — eine bereits
   erklärte Differenz erscheint stattdessen als "✓ Erledigt" mit Audit-Spur.
   Kein Start/Ende-Picker nötig, jede Zählung steht für sich.
@@ -417,7 +407,7 @@ einzelnen Klick.
   Zuordnung läuft sofort) und die Klärungsliste einmal monatlich abarbeiten.
 - **CSV-Export** (`/export/`): Monat auswählen, CSV herunterladen.
 - **Verwaltung** (`/admin/`): Getränke, einzelne Belegpositionen je Artikel,
-  Freigetränke, Kassenbewegungen, PayPal-Zahlungen und Stichwörter pflegen.
+  Kassenbewegungen, PayPal-Zahlungen und Stichwörter pflegen.
 
 Beleg-OCR (automatisches Auslesen des Gesamtbetrags aus dem Scan) ist
 **nicht** Teil dieser Version — der Betrag wird manuell eingetragen, der

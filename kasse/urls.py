@@ -17,7 +17,6 @@ urlpatterns = [
         views.zaehlung_differenz,
         name="zaehlung_differenz",
     ),
-    path("freigetraenk/neu/", views.freigetraenk_neu, name="freigetraenk_neu"),
     path("kassenbewegung/neu/", views.kassenbewegung_neu, name="kassenbewegung_neu"),
     path("beleg/neu/", views.beleg_neu, name="beleg_neu"),
     path("bestand/", views.bestand_uebersicht, name="bestand"),

@@ -7,7 +7,6 @@
     <h2>Schnellzugriff</h2>
     <p>
       <a class="btn" href="{% url 'kasse:zaehlung_neu' %}">Neue Zählung erfassen</a>
-      <a class="btn btn-secondary" href="{% url 'kasse:freigetraenk_neu' %}">Freigetränke erfassen</a>
       <a class="btn btn-secondary" href="{% url 'kasse:kassenbewegung_neu' %}">Kassenbewegung erfassen</a>
       <a class="btn btn-secondary" href="{% url 'kasse:auswertung' %}">Auswertung ansehen</a>
       <a class="btn btn-secondary" href="{% url 'kasse:monatsauswertung' %}">Monatsauswertung ansehen</a>
@@ -54,7 +53,7 @@
 
   <div class="card">
     <h2>Verwaltung</h2>
-    <p class="muted">Getraenke, Belege, Freigetraenke und PayPal-Zahlungen pflegst du im Verwaltungsbereich.</p>
+    <p class="muted">Getraenke, Belege und PayPal-Zahlungen pflegst du im Verwaltungsbereich.</p>
     <a class="btn btn-secondary" href="{% url 'admin:index' %}">Zur Verwaltung</a>
   </div>
 {% endblock %}

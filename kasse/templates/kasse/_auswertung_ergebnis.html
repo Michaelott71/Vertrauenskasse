@@ -74,10 +74,6 @@
       <div class="muted">Einkaufswert (Belege)</div>
       <div class="value">{{ result.einkaufswert }} €</div>
     </div>
-    <div class="summary-item">
-      <div class="muted">Wert ausgegebener Freigetränke</div>
-      <div class="value">{{ result.freigetraenke_wert }} €</div>
-    </div>
   </div>
   {% if result.belege %}
     <div class="table-scroll">
@@ -154,8 +150,6 @@
         <tr>
           <th>Getränk</th>
           <th>Verbraucht</th>
-          <th>Frei</th>
-          <th>Verkauft</th>
           <th>Preis</th>
           <th>Soll</th>
         </tr>
@@ -165,8 +159,6 @@
           <tr>
             <td>{{ p.getraenk.name }}</td>
             <td>{{ p.verbraucht }}</td>
-            <td>{{ p.freigetraenke }}</td>
-            <td>{{ p.verkauft }}</td>
             <td>{{ p.verkaufspreis }} €</td>
             <td>{{ p.soll_kasse }} €</td>
           </tr>

@@ -69,17 +69,6 @@ class DifferenzErklaerenForm(forms.ModelForm):
         return self.cleaned_data.get("differenz_korrektur") or 0
 
 
-class FreigetraenkMetaForm(forms.Form):
-    """Datum/Kommentar fuer eine Freigetraenke-Erfassung; die Mengen je Artikel
-    kommen aus den Kacheln und werden im View direkt aus dem POST gelesen."""
-
-    datum = forms.DateField(
-        label="Datum",
-        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
-    )
-    kommentar = forms.CharField(label="Kommentar", required=False, max_length=255)
-
-
 class KassenbewegungForm(forms.ModelForm):
     art = forms.ChoiceField(
         label="Art", choices=Kassenbewegung.Art.choices, widget=forms.RadioSelect

@@ -13,7 +13,6 @@ from .export import erzeuge_csv, markiere_als_exportiert, pruefe_monat_vollstaen
 from .models import (
     Beleg,
     BelegPosition,
-    Freigetraenk,
     Getraenk,
     GesperrterMonatError,
     Kassenbewegung,
@@ -73,14 +72,14 @@ class AuswertungTests(TestCase):
         _verbrauch(self.ende, self.cola, cola)
         _verbrauch(self.ende, self.twix, twix)
 
-    def test_verkauft_und_soll_kasse_je_artikel_mit_unterschiedlichem_preis(self):
+    def test_verbraucht_und_soll_kasse_je_artikel_mit_unterschiedlichem_preis(self):
         self._ende_verbrauch()
         ergebnis = berechne_auswertung(self.ende)
 
         wasser_pos = next(p for p in ergebnis.positionen if p.getraenk == self.wasser)
         cola_pos = next(p for p in ergebnis.positionen if p.getraenk == self.cola)
-        self.assertEqual(wasser_pos.verkauft, 60)
-        self.assertEqual(cola_pos.verkauft, 30)
+        self.assertEqual(wasser_pos.verbraucht, 60)
+        self.assertEqual(cola_pos.verbraucht, 30)
         self.assertEqual(
             ergebnis.soll_kasse,
             60 * Decimal("1.50") + 30 * Decimal("2.50") + 10 * Decimal("1.00"),
@@ -98,7 +97,7 @@ class AuswertungTests(TestCase):
         self.assertEqual(ergebnis.bar_anteil, Decimal("20.00"))
         self.assertEqual(ergebnis.kassendifferenz, Decimal("12.50"))
 
-    def test_einkaufsbeleg_veraendert_verkauft_nicht(self):
+    def test_einkaufsbeleg_veraendert_verbraucht_nicht(self):
         # Ein Einkauf ist reine Dokumentation (Wareneinsatz) und fliesst nicht
         # in die Kassenformel ein - nur der direkt eingetragene Verbrauch zaehlt.
         beleg = Beleg.objects.create(
@@ -111,16 +110,7 @@ class AuswertungTests(TestCase):
 
         ergebnis = berechne_auswertung(self.ende)
         wasser_pos = next(p for p in ergebnis.positionen if p.getraenk == self.wasser)
-        self.assertEqual(wasser_pos.verkauft, 60)
-
-    def test_freigetraenke_reduziert_verkauft(self):
-        Freigetraenk.objects.create(
-            getraenk=self.wasser, datum="2026-06-05", anzahl=5, kommentar="Team"
-        )
-        self._ende_verbrauch()
-        ergebnis = berechne_auswertung(self.ende)
-        wasser_pos = next(p for p in ergebnis.positionen if p.getraenk == self.wasser)
-        self.assertEqual(wasser_pos.verkauft, 55)
+        self.assertEqual(wasser_pos.verbraucht, 60)
 
     def test_bar_anteil_ist_differenz_des_gezaehlten_bargelds(self):
         self._ende_verbrauch()
@@ -244,14 +234,6 @@ class AuswertungTests(TestCase):
         ergebnis = berechne_auswertung(self.ende)
         self.assertEqual(ergebnis.einkaufswert, Decimal("0"))
         self.assertEqual(ergebnis.belege, [])
-
-    def test_freigetraenke_wert_wird_zu_verkaufspreis_berechnet(self):
-        Freigetraenk.objects.create(
-            getraenk=self.wasser, datum="2026-06-05", anzahl=5, kommentar="Team"
-        )
-        self._ende_verbrauch()
-        ergebnis = berechne_auswertung(self.ende)
-        self.assertEqual(ergebnis.freigetraenke_wert, 5 * Decimal("1.50"))
 
     def test_bargeld_vorschlag_ohne_kassenbewegungen(self):
         self._ende_verbrauch()
@@ -491,7 +473,7 @@ class ZeitraumAuswertungTests(TestCase):
 
         ergebnis = berechne_zeitraum([z1, z2, z3])
         pos = next(p for p in ergebnis.positionen if p.getraenk == getraenk)
-        self.assertEqual(pos.verkauft, 80)
+        self.assertEqual(pos.verbraucht, 80)
         self.assertEqual(ergebnis.soll_kasse, Decimal("120.00"))
 
     def test_leere_liste_gibt_none(self):
@@ -558,19 +540,6 @@ class BestandTests(TestCase):
         self.assertEqual(wasser_bestand.eingekauft, 15)
         self.assertEqual(wasser_bestand.verbraucht, 5)
         self.assertEqual(wasser_bestand.bestand, 10)
-
-    def test_freigetraenke_werden_nicht_doppelt_vom_bestand_abgezogen(self):
-        # Freigetraenke sind bereits Teil von "verbraucht" (das ist die
-        # physisch entnommene Menge) - sie duerfen nicht zusaetzlich nochmal
-        # vom Bestand abgezogen werden.
-        self._beleg_position(self.wasser, 10)
-        z = _zaehlung("2026-06-05", "0")
-        _verbrauch(z, self.wasser, 4)
-        Freigetraenk.objects.create(getraenk=self.wasser, datum="2026-06-05", anzahl=2)
-
-        bestaende = berechne_bestand()
-        wasser_bestand = next(b for b in bestaende if b.getraenk == self.wasser)
-        self.assertEqual(wasser_bestand.bestand, 6)
 
 
 class PaypalMatchingTests(TestCase):
@@ -650,19 +619,6 @@ class MonatsExportLockTests(TestCase):
             name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50")
         )
         MonatsExport.objects.create(jahr=2026, monat=6)
-
-    def test_freigetraenk_in_exportiertem_monat_wird_blockiert(self):
-        import datetime
-
-        fg = Freigetraenk(getraenk=self.getraenk, datum=datetime.date(2026, 6, 15), anzahl=1)
-        with self.assertRaises(GesperrterMonatError):
-            fg.clean()
-
-    def test_freigetraenk_in_nicht_exportiertem_monat_ist_erlaubt(self):
-        import datetime
-
-        fg = Freigetraenk(getraenk=self.getraenk, datum=datetime.date(2026, 7, 15), anzahl=1)
-        fg.clean()  # keine Exception
 
     def test_zaehlung_in_exportiertem_monat_wird_blockiert(self):
         zaehlung = _zaehlung("2026-06-15", "0")
@@ -1024,15 +980,11 @@ class ZaehlungDifferenzViewTests(TestCase):
         )
         _verbrauch(self.zaehlung, self.wasser, 10)  # Soll 15.00, Differenz -2.50
 
-    def test_zeigt_kassendifferenz_und_freigetraenke_link_mit_datum(self):
+    def test_zeigt_kassendifferenz(self):
         response = self.client.get(
             reverse("kasse:zaehlung_differenz", args=[self.zaehlung.pk])
         )
         self.assertContains(response, "-2,50")
-        self.assertContains(
-            response,
-            f"{reverse('kasse:freigetraenk_neu')}?datum=2026-06-01",
-        )
 
     def test_post_speichert_kommentar_und_leitet_zur_startseite(self):
         response = self.client.post(
@@ -1088,46 +1040,6 @@ class ZaehlungDifferenzViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.zaehlung.refresh_from_db()
         self.assertEqual(self.zaehlung.notiz, "")
-
-
-class FreigetraenkNeuViewTests(TestCase):
-    def setUp(self):
-        self.user = User.objects.create_user(username="tester", password="pw12345678")
-        self.wasser = Getraenk.objects.create(
-            name="Wasser", warenpreis=Decimal("0.50"), verkaufspreis=Decimal("1.50"),
-        )
-        self.client.login(username="tester", password="pw12345678")
-
-    def test_get_mit_datum_param_belegt_datumsfeld_vor(self):
-        response = self.client.get(
-            reverse("kasse:freigetraenk_neu"), {"datum": "2026-07-04"}
-        )
-        self.assertEqual(
-            response.context["meta_form"].initial["datum"], date(2026, 7, 4)
-        )
-
-    def test_post_erstellt_freigetraenk(self):
-        response = self.client.post(
-            reverse("kasse:freigetraenk_neu"),
-            {
-                "datum": "2026-06-10",
-                "kommentar": "Teamevent",
-                f"anzahl_{self.wasser.id}": "3",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-        fg = Freigetraenk.objects.get(getraenk=self.wasser)
-        self.assertEqual(fg.anzahl, 3)
-        self.assertEqual(fg.kommentar, "Teamevent")
-
-    def test_post_in_exportiertem_monat_wird_blockiert(self):
-        MonatsExport.objects.create(jahr=2026, monat=6)
-        response = self.client.post(
-            reverse("kasse:freigetraenk_neu"),
-            {"datum": "2026-06-10", "kommentar": "", f"anzahl_{self.wasser.id}": "3"},
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFalse(Freigetraenk.objects.filter(getraenk=self.wasser).exists())
 
 
 class KassenbewegungNeuViewTests(TestCase):
@@ -1375,7 +1287,7 @@ class MonatsauswertungViewTests(TestCase):
         result = response.context["result"]
         self.assertIsNotNone(result)
         pos = next(p for p in result.positionen if p.getraenk == self.getraenk)
-        self.assertEqual(pos.verkauft, 80)
+        self.assertEqual(pos.verbraucht, 80)
 
 
 class PaypalAbgleichViewTests(TestCase):

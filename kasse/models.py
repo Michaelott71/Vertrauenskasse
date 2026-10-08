@@ -7,7 +7,7 @@ from django.db import models
 def ist_monat_exportiert(datum):
     """True, wenn fuer den Monat von `datum` bereits ein CSV-Export erstellt wurde.
 
-    Ab diesem Zeitpunkt gelten Korrekturen (Freigetraenke, Bestandskorrekturen, ...)
+    Ab diesem Zeitpunkt gelten Korrekturen (Kassenbewegungen, Belege, ...)
     fuer diesen Monat nicht mehr rueckwirkend, siehe README.
     """
     return MonatsExport.objects.filter(jahr=datum.year, monat=datum.month).exists()
@@ -68,9 +68,9 @@ class Zaehlung(models.Model):
     )
     # Erfassungszeitpunkt (nicht vom Nutzer gesetzt): wird zusaetzlich zum
     # Datum als Tie-Breaker gebraucht, wenn mehrere Zaehlungen/Kassen-
-    # bewegungen/Freigetraenke/Belege auf denselben Kalendertag fallen - sonst
-    # liesse sich nicht bestimmen, was zeitlich vor oder nach einer Zaehlung
-    # passiert ist. Siehe README, Abschnitt "Abweichungen vom Datenmodell".
+    # bewegungen/Belege auf denselben Kalendertag fallen - sonst liesse sich
+    # nicht bestimmen, was zeitlich vor oder nach einer Zaehlung passiert ist.
+    # Siehe README, Abschnitt "Abweichungen vom Datenmodell".
     erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
     # Manuelle Korrektur der Kassendifferenz dieser Zaehlung (z.B. Trinkgeld,
     # per PayPal bezahlt). Wird direkt dieser Zaehlung zugeordnet (nicht ueber
@@ -204,30 +204,6 @@ class BelegPosition(models.Model):
 
     def __str__(self):
         return f"{self.anzahl}x {self.getraenk} ({self.beleg})"
-
-
-class Freigetraenk(models.Model):
-    getraenk = models.ForeignKey(
-        Getraenk, on_delete=models.PROTECT, related_name="freigetraenke"
-    )
-    datum = models.DateField()
-    anzahl = models.PositiveIntegerField()
-    kommentar = models.CharField(max_length=255, blank=True)
-    # Siehe Zaehlung.erstellt_am: Tie-Breaker fuer Zaehlungs-Zeitraeume bei
-    # gleichem Datum.
-    erstellt_am = models.DateTimeField(auto_now_add=True, editable=False)
-
-    class Meta:
-        ordering = ["-datum", "-id"]
-        verbose_name = "Freigetränk"
-        verbose_name_plural = "Freigetränke"
-
-    def __str__(self):
-        return f"{self.anzahl}x {self.getraenk} frei am {self.datum}"
-
-    def clean(self):
-        if self.datum:
-            pruefe_monat_nicht_exportiert(self.datum, "Ein nachgetragenes Freigetränk")
 
 
 class Kassenbewegung(models.Model):

@@ -23,7 +23,6 @@ from .forms import (
     BelegForm,
     DifferenzErklaerenForm,
     ExportForm,
-    FreigetraenkMetaForm,
     KassenbewegungForm,
     MonatsauswahlForm,
     PaypalKlaerungForm,
@@ -33,7 +32,6 @@ from .forms import (
 from .models import (
     Beleg,
     BelegPosition,
-    Freigetraenk,
     GesperrterMonatError,
     Getraenk,
     Kassenbewegung,
@@ -148,9 +146,8 @@ def zaehlung_bargeld(request, zaehlung_id):
 @login_required
 def zaehlung_differenz(request, zaehlung_id):
     """Wird direkt nach dem Bestaetigen eines vom Vorschlag abweichenden
-    Bargeldbetrags angezeigt: bietet an, die Differenz entweder ueber
-    Freigetraenke zu erklaeren oder einfach als Kommentar fuer den
-    Steuerberater festzuhalten."""
+    Bargeldbetrags angezeigt: bietet an, die Differenz zu erklaeren (Notiz
+    plus erklaerter Betrag, der die Kassendifferenz entsprechend senkt)."""
     zaehlung = get_object_or_404(Zaehlung, pk=zaehlung_id)
 
     if request.method == "POST":
@@ -177,60 +174,6 @@ def zaehlung_differenz(request, zaehlung_id):
         request,
         "kasse/zaehlung_differenz.html",
         {"zaehlung": zaehlung, "result": result, "form": form},
-    )
-
-
-@login_required
-def freigetraenk_neu(request):
-    artikel = list(Getraenk.objects.filter(aktiv=True).order_by("name"))
-
-    if not artikel:
-        messages.info(
-            request,
-            "Es sind noch keine aktiven Getränke angelegt. Bitte zuerst in der "
-            "Verwaltung ein Getränk anlegen.",
-        )
-        return render(request, "kasse/freigetraenk_form.html", {"keine_artikel": True})
-
-    if request.method == "POST":
-        meta_form = FreigetraenkMetaForm(request.POST)
-        if meta_form.is_valid():
-            datum = meta_form.cleaned_data["datum"]
-            kommentar = meta_form.cleaned_data["kommentar"]
-            try:
-                pruefe_monat_nicht_exportiert(datum, "Ein nachgetragenes Freigetränk")
-            except GesperrterMonatError as exc:
-                messages.error(request, str(exc))
-            else:
-                erstellt = 0
-                with transaction.atomic():
-                    for getraenk in artikel:
-                        anzahl = _int_aus_post(request.POST, f"anzahl_{getraenk.id}")
-                        if anzahl > 0:
-                            Freigetraenk.objects.create(
-                                getraenk=getraenk,
-                                datum=datum,
-                                anzahl=anzahl,
-                                kommentar=kommentar,
-                            )
-                            erstellt += 1
-                if erstellt:
-                    messages.success(
-                        request, f"{erstellt} Freigetränke-Eintrag/-einträge gespeichert."
-                    )
-                else:
-                    messages.info(request, "Keine Mengen eingegeben, nichts gespeichert.")
-                return redirect(reverse("kasse:home"))
-    else:
-        angefordertes_datum = parse_date(request.GET.get("datum", "") or "")
-        meta_form = FreigetraenkMetaForm(
-            initial={"datum": angefordertes_datum or timezone.localdate()}
-        )
-
-    return render(
-        request,
-        "kasse/freigetraenk_form.html",
-        {"meta_form": meta_form, "artikel": artikel},
     )
 
 
